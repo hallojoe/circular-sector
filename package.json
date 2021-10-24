@@ -1,0 +1,42 @@
+{
+  "name": "@casko/circular-sector",
+  "version": "1.0.0",
+  "description": "A set of functions computing cartesian coordinates, describing circular and annular sectors.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "webpack --mode production"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hallojoe/circular-sector.git"
+  },
+  "keywords": [
+    "circle",
+    "sector",
+    "circular",
+    "annulus",
+    "annular",
+    "arc",
+    "points",
+    "point",
+    "centroid",
+    "sagitta",
+    "chord",
+    "radius",
+    "radii",
+    "isosceles",
+    "triangle"
+  ],
+  "author": "casper korsgaard",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hallojoe/circular-sector/issues"
+  },
+  "homepage": "https://github.com/hallojoe/circular-sector#readme",
+  "devDependencies": {
+    "ts-loader": "^9.2.5",
+    "typescript": "^4.3.5",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2"
+  }
+}
