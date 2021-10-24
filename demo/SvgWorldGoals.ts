@@ -1,4 +1,4 @@
-import { createCircularSector, distribute } from "../../src/Functions"
+import { createCircularSector, distribute } from "../src/Functions"
 import { svgPath, svgPathCollection } from "./Svg"
 
 const wordlGoalColors = [

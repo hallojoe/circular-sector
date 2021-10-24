@@ -1,4 +1,4 @@
-import { distribute, createCircularSector, createCircularSectorMargin, createAnnulusSector } from "../../src/Functions"
+import { distribute, createCircularSector, createCircularSectorMargin, createAnnulusSector } from "../src/Functions"
 import { svg, svgPath } from "./Svg"
 
 export function svgEthicsCompas(): SVGSVGElement {

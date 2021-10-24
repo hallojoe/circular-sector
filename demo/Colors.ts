@@ -1,3 +1,4 @@
+export const color = (index: number, alpha: number) => colors[index].replace(/1\)/, alpha + ")")
 export const colors = [
   "rgb(235, 28, 44, 1)",   
   "rgb(24, 53, 103,1)",

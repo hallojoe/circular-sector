@@ -1,5 +1,8 @@
-import { createAnnulusSector, createCircularSectorMargin } from "../../src/Functions"
-import { ICircularSector, IPoint } from "../../src/Interfaces"
+import { createAnnulusSector, createCircularSectorMargin } from "../src/Functions"
+import { ICircularSector, IPoint } from "../src/Interfaces"
+
+// demo helper for demo'ing visually demos
+// signatures are in demo mode o_0
 
 export function svg(
   width: number = 200, 
@@ -9,59 +12,6 @@ export function svg(
   svgElement.setAttribute("width", (width).toString())
   svgElement.setAttribute("height", (height).toString())
   return svgElement
-}
-
-export function svgPathData2(sector: ICircularSector, radius = sector.radius ): string {
-
-  const largeArcFlag = sector.ratio * 360 > 180 ? "0 1 1" : "0 0 1"
-
-  const pathData = [
-    "M",
-    sector.anchors.outer.end.x,
-    sector.anchors.outer.end.y,
-    // "L",
-    // sector.anchors.middle.mid.x,
-    // sector.anchors.middle.mid.y,
-    // "L",
-    // sector.anchors.outer.start.x,
-    // sector.anchors.outer.start.y
-    "A",
-    radius,
-    radius,
-    largeArcFlag,
-    sector.anchors.outer.start.x,
-    sector.anchors.outer.start.y
-  ]
-
-  if(sector.anchors.inner.mid === sector.anchors.inner.end) {
-
-    pathData.push(
-      "L",
-      sector.center.x,
-      sector.center.y,
-      "Z"
-    )      
-
-  }
-  else {
-
-    pathData.push(
-      "L",
-      sector.anchors.inner.start.x,
-      sector.anchors.inner.start.y,
-      "A",
-      sector.source.radius,
-      sector.source.radius,
-      largeArcFlag.split(" ").reverse().join(" "),
-      sector.anchors.inner.end.x,
-      sector.anchors.inner.end.y,
-      "Z"
-    )      
-    
-  }
-
-  return pathData.join(" ")
-
 }
 
 export function svgPathData(sector: ICircularSector, radius = sector.radius ): string {
@@ -116,7 +66,6 @@ export function svgPathData(sector: ICircularSector, radius = sector.radius ): s
   return pathData.join(" ")
 
 }
-
 export function svgPath(
   sector: ICircularSector, 
   radius = sector.radius, 
@@ -181,11 +130,6 @@ export function svgPathCollection(
   debug: boolean = false): SVGSVGElement {
 
   const svgElement = svg(size, size)
-  // svgElement.style.background = "black"
-  const ball = svgCircle({x: 0, y: 0 }, 5, "deeppink", 2)
-
-
-
 
   sectors.forEach((sector, index) => {
 
@@ -198,74 +142,51 @@ export function svgPathCollection(
     const marginPath = svgPath(
       sectorReContructed, 
       sector.radius, 
-      "", 
-      0, 
+      Array.isArray(stroke) ? stroke[index] : stroke, 
+      Array.isArray(strokeWidth) ? strokeWidth[index] : strokeWidth, 
       Array.isArray(fill) ? fill[index] : fill, 
     )
 
-    const marginPath2 = svgPathData(
-      {...sectorReContructed2, radius: sectorReContructed2.radius}, 
-      sector.radius 
-    )
+    // const marginPath2 = svgPathData(
+    //   {...sectorReContructed2, radius: sectorReContructed2.radius}, 
+    //   sector.radius 
+    // )
     
-    var text = svgText(sectorReContructed.anchors.middle.mid, (sectorReContructed.ratio * 100).toFixed(1) + "%")
+    // var text = svgText(sectorReContructed.anchors.middle.mid, (sectorReContructed.ratio * 100).toFixed(1) + "%")
 
-    marginPath.dataset.d = marginPath2
+    // marginPath.dataset.d = marginPath2
 
-    const handleInteraction = (event: any) => {
-      const element = <SVGPathElement>event.target
-      const d = element.getAttribute("d")
-      element.setAttribute("d", event.target.dataset.d)
-      element.dataset.d = d
-    }
-
-    // marginPath.onmouseover = (event: any) => {
-    //   handleInteraction(event)
-    // }
-
-    // marginPath.onmouseout = (event: any) => {
-    //   handleInteraction(event)      
-    // }
-
-
-    // marginPath.onmouseover = (event: any) => {
+    // const handleInteraction = (event: any) => {
     //   const element = <SVGPathElement>event.target
-    //   const cx = element.dataset.cx
-    //   const cy = element.dataset.cy 
-    //   ball.setAttribute("cx", cx)
-    //   ball.setAttribute("cy", cy)
+    //   const d = element.getAttribute("d")
+    //   element.setAttribute("d", event.target.dataset.d)
+    //   element.dataset.d = d
     // }
-
 
     svgElement.appendChild(marginPath)
 
-    //svgElement.appendChild(m)
-
-
-
-
-
-
     if(debug) {
 
-      var ai = Array.isArray(stroke) ? stroke[index] : stroke
-      var aj = Array.isArray(fill) ? fill[index] : fill
-      //aj = aj.replace(/1\)/, ".8)")
+      let sw = Array.isArray(strokeWidth) ? strokeWidth[index] : strokeWidth
+      if(sw <= 0) sw = 2
+      const ai = Array.isArray(stroke) ? stroke[index] : stroke
+      const aj = Array.isArray(fill) ? fill[index] : fill
+      
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.start, sw, ai, 1, aj))
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.mid, sw, ai, 1, aj))
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.end, sw, ai, 1, aj))
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.start, sw, ai, 1, aj))
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.mid, sw, ai, 1, aj))
+      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.end, sw, ai, 1, aj))
 
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.start, 2, ai, 1, aj))
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.mid, 2, ai, 1, aj))
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.outer.end, 2, ai, 1, aj))
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.start, 2, ai, 1, aj))
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.mid, 2, ai, 1, aj))
-      svgElement.appendChild(svgCircle(sectorReContructed.anchors.middle.end, 2, ai, 1, aj))
       // if not annulus
       if(sectorReContructed.anchors.inner.start === sectorReContructed.anchors.inner.end)  {
-        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.mid, 2, ai, 1, aj))
+        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.mid, sw, ai, 1, aj))
       }      
       else {
-        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.start, 2, ai, 1, aj))
-        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.mid, 2, ai, 1, aj))
-        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.end, 2, ai, 1, aj))    
+        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.start, sw, ai, 1, aj))
+        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.mid, sw, ai, 1, aj))
+        svgElement.appendChild(svgCircle(sectorReContructed.anchors.inner.end, sw, ai, 1, aj))    
       }
     }
 
