@@ -1,6 +1,6 @@
 # Circular Sector
 
-A set of functions computing cartesian coordinates, describing circular and annulus sectors.
+A set of functions computing cartesian coordinates, describing circular and annular sectors.
 
 Usable for drawing circular things on ex. `svg` and `canvas` elements, but not bound to either of them.
 
@@ -22,7 +22,7 @@ Examples generated using this thing:
 
 ![Example](./examples/circular-sectors.svg)
 
-### Annulus sectors
+### Annular sectors
 
 ![Example](./examples/annulus-sectors.svg)
 
@@ -32,7 +32,7 @@ Examples generated using this thing:
 ![Example](./examples/circular-sectors-with-margin.svg)
 
 
-### Annulus sectors with margin
+### Annular sectors with margin
 
 ![Example](./examples/annulus-sectors-with-margin.svg)
 
