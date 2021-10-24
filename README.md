@@ -1,6 +1,6 @@
 # Circular Sector
 
-A set of functions computing cartesian coordinates, describing circular and annulus sectors.
+A set of functions computing cartesian coordinates, describing circular and annular sectors.
 
 Usable for drawing circular things on ex. `svg` and `canvas` elements, but not bound to either of them.
 
@@ -10,7 +10,11 @@ Great for circular visualisations like spread, progress and reticulated splines.
 
 `npm install @casko/circular-sector`
 
-## SVG Examples 
+## Demo  
+
+A demo can be found [here](https://hallojoe.github.io/circular-sector/)
+
+## Inline Examples 
 
 Examples generated using this thing:
 
@@ -18,7 +22,7 @@ Examples generated using this thing:
 
 ![Example](./examples/circular-sectors.svg)
 
-### Annulus sectors
+### Annular sectors
 
 ![Example](./examples/annulus-sectors.svg)
 
@@ -28,7 +32,7 @@ Examples generated using this thing:
 ![Example](./examples/circular-sectors-with-margin.svg)
 
 
-### Annulus sectors with margin
+### Annular sectors with margin
 
 ![Example](./examples/annulus-sectors-with-margin.svg)
 
@@ -44,12 +48,12 @@ Examples generated using this thing:
 
 ## Usage
 
-See demos folder.
+See repository `./demo` folder for examples.
 
 
 ## Todo
 
-  - Add links to demo
+  - ~~Add links to demo~~
   - Center of mass and gravity
 
 # Notes
