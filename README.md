@@ -10,7 +10,11 @@ Great for circular visualisations like spread, progress and reticulated splines.
 
 `npm install @casko/circular-sector`
 
-## SVG Examples 
+## Demo  
+
+A demo can be found [here](https://hallojoe.github.io/circular-sector/)
+
+## Inline Examples 
 
 Examples generated using this thing:
 
@@ -44,12 +48,12 @@ Examples generated using this thing:
 
 ## Usage
 
-See demos folder.
+See repository `./demo` folder for examples.
 
 
 ## Todo
 
-  - Add links to demo
+  - ~~Add links to demo~~
   - Center of mass and gravity
 
 # Notes
