@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+
+    }
+    body {
+      margin: 4rem;
+    }
+    svg {      
+      display: inline-block;
+      margin: 1rem;
+    }
+    path {
+      paint-order: stroke;
+      transition: all .125s ease-in-out;
+    } 
+    
+
+</style>
+</head>
+  <body>
+
+    <h1>Circular Sector Demo</h1>
+
+    <fieldset>
+
+      <legend>Circular sector inputs</legend>
+
+      <form id="inputs">
+
+        <div>
+          <label for="radius">Radius</label>
+          <input id="radius" type="number" min="32" max="800" step="1" value="200">   
+        </div>
+
+        <div>
+          <label for="height">Height</label>
+          <input id="height" type="number" min="0" max="100" step="1" value="0">   
+        </div>
+
+        <div>
+          <label for="margin">Margin</label>
+          <input id="margin" type="number" min="0" max="24" step="1" value="0">   
+        </div>
+
+        <div>
+          <label for="strokeWidth">Stroke width</label>
+          <input id="strokeWidth" type="number" min="0" max="10" step="1" value="0">   
+        </div>
+
+        <div>
+          <label for="values">Values</label>
+          <p>Comma separated list of numeric values. Leave blank to use a random set of values.</p>
+          <textarea id="values">100, 200, 300, 400, 500</textarea>   
+        </div>
+
+        <div>
+          <input id="debug" type="checkbox" checked>   
+          <label for="debug">Debug</label>
+          <p>Add markers on sector anchor points.</p>
+        </div>
+
+      </form>
+    </fieldset>
+    
+    <div id="demos">
+
+    </div>
+    
+    <script src="demo/index.js"></script>
+
+  </body>
+</html>
