@@ -6,7 +6,7 @@ import { IPoint } from "./Interfaces"
  * @param angle - The angle in radians measured from the positive x-axis to the point.
  * @returns The Cartesian coordinates of the point.
  */
-export function calculatePolarToCartesian(center: IPoint, radius: number, angle: number): IPoint {
+export function convertPolarToCartesian(center: IPoint, radius: number, angle: number): IPoint {
 
   // Calculate the x-coordinate using the formula: x = center.x + radius * cos(angle)
   const x = center.x + radius * Math.cos(angle)

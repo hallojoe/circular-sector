@@ -1,5 +1,5 @@
 import { IAngles, IPoint } from "./Interfaces"
-import { calculatePolarToCartesian } from "./convertPolarToCartesian";
+import { convertPolarToCartesian } from "./convertPolarToCartesian";
 
 /**
  * Compute the centroid of a circular sector.
@@ -13,7 +13,7 @@ export function calculateSectorCentroid(center:IPoint, angles:IAngles, radius:nu
   const endAngle = angles.end;
   
   // Calculate the midpoint of the circular arc
-  const arcMidpoint = calculatePolarToCartesian(center, radius, (startAngle + endAngle) / 2);
+  const arcMidpoint = convertPolarToCartesian(center, radius, (startAngle + endAngle) / 2);
 
   // Calculate the area of the circular segment
   const sectorArea = 0.5 * radius ** 2 * (endAngle - startAngle - Math.sin(endAngle - startAngle));
@@ -25,7 +25,7 @@ export function calculateSectorCentroid(center:IPoint, angles:IAngles, radius:nu
   const distanceToSegmentCentroid = (4 * sectorArea) / (3 * arcLength);
 
   // Calculate the coordinates of the centroid of the circular segment
-  const segmentCentroid = calculatePolarToCartesian(center, distanceToSegmentCentroid, (startAngle + endAngle) / 2);
+  const segmentCentroid = convertPolarToCartesian(center, distanceToSegmentCentroid, (startAngle + endAngle) / 2);
 
   // Return the centroid point of the circular sector
   return segmentCentroid;
