@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "A set of functions computing cartesian coordinates, describing circular and annular sectors.",
   "main": "dist/index.js",
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "tsc"
   },
