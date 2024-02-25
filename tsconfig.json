@@ -1,16 +1,13 @@
 {
   "compilerOptions": {
-    "noImplicitAny": false,
-    "noEmitOnError": true,
-    "removeComments": false,
-    "sourceMap": true,
-    "target": "ES5", 
-    "module":"commonjs", 
-    "lib": ["es2019", "es2017", "es7", "es6", "dom"],
-    "jsx": "preserve"    
+    "target": "es5",
+    "declaration": true,
+    "module": "commonjs",
+    "outDir": "./dist",
+    "strict": true,
+    "removeComments": false
   },
-  "exclude": [
-    "node_modules",
-    "wwwroot"
+  "include": [
+    "src/**/*.ts"
   ]
 }

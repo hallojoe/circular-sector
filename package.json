@@ -1,10 +1,10 @@
 {
   "name": "@casko/circular-sector",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "A set of functions computing cartesian coordinates, describing circular and annular sectors.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "webpack --mode production"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
@@ -35,8 +35,6 @@
   "homepage": "https://github.com/hallojoe/circular-sector#readme",
   "devDependencies": {
     "ts-loader": "^9.2.5",
-    "typescript": "^4.3.5",
-    "webpack": "^5.49.0",
-    "webpack-cli": "^4.7.2"
+    "typescript": "^4.3.5"
   }
 }

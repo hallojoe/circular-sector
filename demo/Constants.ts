@@ -1,1 +1,0 @@
-export const THETA: number = (-Math.PI * .5)
