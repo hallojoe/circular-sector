@@ -33,6 +33,7 @@ TODO: Add demo link...
  - 2.0.0 - Extract and clean up things. Add "rounded corners" option.
  - 2.0.1 - Fix function name.
  - 2.0.2 - Pass down path radius.
+ - 2.0.2 - Fix gap beeing used as path radius.
 
 ## See you
 

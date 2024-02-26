@@ -56,7 +56,7 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRa
 
 function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pathRadius:number = 0): string {
 
-  if(pathRadius < 1) return buildCircularSectorPath(sector)
+  if(pathRadius < 1) return buildCircularSectorPath(sector, 0)
 
   // Create a short sector by adding substracting from height and radius
   const sectorShort:ICircularSectorViewModel = createCircularSectorViewModel({
@@ -68,7 +68,7 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
   // Create a narrow sector by adding to gap
   const sectorNarrow = createCircularSectorViewModel({
     ...sector.source,
-    gap: sector.source.gap + (sector.source.gap * 2)
+    gap: sector.source.gap + (pathRadius * 2)
   })
 
   const sectorInner = createCircularSectorViewModel({
