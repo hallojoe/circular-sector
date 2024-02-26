@@ -3,7 +3,7 @@ import { createCircularSectorViewModel } from "./createCircularSectorViewModel";
 
 export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRadius:number = 0): string {
 
-  if(pathRadius > 0) return buildCircularSectorPathWithRadius(sector)
+  if(pathRadius > 0) return buildCircularSectorPathWithRadius(sector, pathRadius)
   
   const largeArcFlag = getLargeArcFlag(sector.ratio)
 

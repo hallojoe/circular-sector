@@ -32,6 +32,7 @@ TODO: Add demo link...
  - 1.0.1 - Update demo and minimize readme.
  - 2.0.0 - Extract and clean up things. Add "rounded corners" option.
  - 2.0.1 - Fix function name.
+ - 2.0.2 - Pass down path radius.
 
 ## See you
 
