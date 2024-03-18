@@ -19,7 +19,6 @@ export interface IAnchorPoints {
   outer: IPoints
   middle: IPoints
   inner: IPoints
-  centroid: IPoint
 }
 
 export interface ICircularSectorSettings { 
@@ -29,7 +28,7 @@ export interface ICircularSectorSettings {
   theta: number 
   gap:number
   height:number
-  borderRadius?: number 
+  pathRadius: number 
 }
 
 export interface ICircularSectorViewModel {   
@@ -39,4 +38,7 @@ export interface ICircularSectorViewModel {
   center: IPoint
   angles: IAngles
   anchors: IAnchorPoints
+  chords: IAnchorPoints
+  sagittas: IAnchorPoints
+  centroid: IPoint
 }

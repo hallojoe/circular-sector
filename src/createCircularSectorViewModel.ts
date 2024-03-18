@@ -30,20 +30,64 @@ export function createCircularSectorViewModel(input: ICircularSectorSettings): I
   })
 
   // Create annulus sector
-  const annularSector = {
+  let annularSector = {
     ...outerSector,
     anchors: {
       ...outerSector.anchors,
       middle: { ...midSector.anchors.outer },
       inner: { ...innerSector.anchors.outer }
-    }    
+    }
   }
 
   // If sector radius is less than height then set inner points to outer sector inner points
   if(annularSector.radius < annularSector.source.height) {
-
     annularSector.anchors.inner = outerSector.anchors.inner    
+  }
 
+  const outerChordMidPoint = calculateMidpoint(outerSector.anchors.outer.start, outerSector.anchors.outer.end)
+  const middleChordMidPoint = calculateMidpoint(midSector.anchors.outer.start, midSector.anchors.outer.end)
+  const innerChordMidPoint = calculateMidpoint(innerSector.anchors.outer.start, innerSector.anchors.outer.end)
+
+  const outerSagittaMidPoint = calculateMidpoint(outerSector.anchors.outer.mid, outerChordMidPoint)
+  const middleSagittaMidPoint = calculateMidpoint(midSector.anchors.outer.mid, middleChordMidPoint)
+  const innerSagittaMidPoint = calculateMidpoint(innerSector.anchors.outer.mid, innerChordMidPoint)
+
+  annularSector = {
+    ... annularSector,
+    chords: {
+      outer: {
+        start:outerSector.anchors.outer.start,
+        end: outerSector.anchors.outer.end,
+        mid: outerChordMidPoint
+      },
+      middle: {
+        start:midSector.anchors.outer.start,
+        end: midSector.anchors.outer.end,
+        mid: middleChordMidPoint
+      },
+      inner: {
+        start:innerSector.anchors.outer.start,
+        end: innerSector.anchors.outer.end,
+        mid: innerChordMidPoint
+      }
+    },
+    sagittas: {
+      outer: {
+        start:outerSector.anchors.outer.mid,
+        end: outerChordMidPoint,
+        mid: outerSagittaMidPoint
+      },
+      middle: {
+        start:midSector.anchors.outer.mid,
+        end: middleChordMidPoint,
+        mid: middleSagittaMidPoint
+      },
+      inner: {
+        start:innerSector.anchors.outer.mid,
+        end: innerChordMidPoint,
+        mid: innerSagittaMidPoint
+      }
+    }        
   }
 
   return annularSector
@@ -59,7 +103,7 @@ function createCircularSectorBase(input: ICircularSectorSettings): ICircularSect
     ratio: input.ratio,
     radius: input.radius,
     center: input.center,
-    angles: calculateSectorAngles(input.ratio, input.theta)
+    angles: calculateSectorAngles(input.ratio, input.theta),
   }
 
   // Compute anchor points
@@ -85,19 +129,60 @@ function createCircularSectorBase(input: ICircularSectorSettings): ICircularSect
     sector.center
   ]
 
+  const outerChordMidPoint = calculateMidpoint(outerStartPoint, outerEndPoint)
+  const middleChordMidPoint = calculateMidpoint(middleStartPoint, middleEndPoint)
+  const innerChordMidPoint = calculateMidpoint(innerStartPoint, innerEndPoint)
+
+  const outerSagittaMidPoint = calculateMidpoint(outerMidPoint, outerChordMidPoint)
+  const middleSagittaMidPoint = calculateMidpoint(middleMidPoint, middleChordMidPoint)
+  const innerSagittaMidPoint = calculateMidpoint(innerMidPoint, innerChordMidPoint)
+
   // Create result
-  const interimResult = {
+  let result = {
     ...sector,
     anchors: {
       outer: { start: outerStartPoint, mid: outerMidPoint, end: outerEndPoint },
       middle: { start: middleStartPoint, mid: middleMidPoint, end: middleEndPoint },
-      inner: { start: innerStartPoint, mid: innerMidPoint, end: innerEndPoint },
-      centroid: calculateSectorCentroid(sector.center, sector.angles, sector.radius)
-    }
+      inner: { start: innerStartPoint, mid: innerMidPoint, end: innerEndPoint }
+    },
+    chords: {
+      outer: {
+        start:outerStartPoint,
+        end: outerEndPoint,
+        mid: outerChordMidPoint
+      },
+      middle: {
+        start:middleStartPoint,
+        end: middleEndPoint,
+        mid: middleChordMidPoint
+      },
+      inner: {
+        start:innerStartPoint,
+        end: innerEndPoint,
+        mid: innerChordMidPoint
+      }
+    },
+    sagittas: {
+      outer: {
+        start:outerMidPoint,
+        end: outerChordMidPoint,
+        mid: outerSagittaMidPoint
+      },
+      middle: {
+        start:middleMidPoint,
+        end: middleChordMidPoint,
+        mid: middleSagittaMidPoint
+      },
+      inner: {
+        start:innerMidPoint,
+        end: innerChordMidPoint,
+        mid: innerSagittaMidPoint
+      }
+    },
+    centroid: { x: 0, y: 0}
   }
 
-  return interimResult
-
+  return result
 }
 
 function createCircularSectorGap(input: ICircularSectorSettings): ICircularSectorViewModel {
@@ -186,6 +271,7 @@ function createCircularSectorGap(input: ICircularSectorSettings): ICircularSecto
     sector.angles.end
   )
 
+  
   // set new anchor points
   result.anchors = {
     ...sector.anchors,
@@ -203,11 +289,53 @@ function createCircularSectorGap(input: ICircularSectorSettings): ICircularSecto
       start: result.center,
       mid: result.center,
       end: result.center
+    }
+  }
+
+  const outerChordMidPoint = calculateMidpoint(result.anchors.outer.start, result.anchors.outer.end)
+  const middleChordMidPoint = calculateMidpoint(result.anchors.middle.start, result.anchors.middle.end)
+  const innerChordMidPoint = calculateMidpoint(result.anchors.inner.start, result.anchors.inner.end)
+
+  const outerSagittaMidPoint = calculateMidpoint(result.anchors.outer.mid, outerChordMidPoint)
+  const middleSagittaMidPoint = calculateMidpoint(result.anchors.middle.mid, middleChordMidPoint)
+  const innerSagittaMidPoint = calculateMidpoint(result.anchors.inner.mid, innerChordMidPoint)
+
+  result.chords = {
+    outer: {
+      start: result.anchors.outer.start,
+      mid: outerChordMidPoint,
+      end: result.anchors.outer.end
     },
-    centroid: calculateSectorCentroid(result.center, result.angles, result.radius)
+    middle: {
+      start: result.anchors.middle.start,
+      mid: middleChordMidPoint,
+      end: result.anchors.middle.end
+    },
+    inner: {
+      start: result.anchors.inner.start,
+      mid: innerChordMidPoint,
+      end: result.anchors.inner.end
+    }
+  }
+
+  result.sagittas = {
+    outer: {
+      start: result.anchors.outer.mid,
+      mid: outerSagittaMidPoint,
+      end: outerChordMidPoint
+    },
+    middle: {
+      start: result.anchors.middle.mid,
+      mid: middleSagittaMidPoint,
+      end: middleChordMidPoint
+    },
+    inner: {
+      start: result.anchors.inner.mid,
+      mid: innerSagittaMidPoint,
+      end: innerChordMidPoint
+    }
   }
 
   return result
-
 }
 
