@@ -13,4 +13,3 @@ import { calculateSectorLengthInRadians } from "./calculateSectorLengthInRadians
 import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
 import { convertPolarToCartesian } from "./convertPolarToCartesian"
 import { buildCircularSectorPath } from "./buildCircularSectorPath"
-import { convertAnchorPointsToRectangular } from "./convertAnchorPointsToRectangular"
