@@ -182,6 +182,10 @@ function createCircularSectorBase(input: ICircularSectorSettings): ICircularSect
     centroid: { x: 0, y: 0}
   }
 
+  const centroid = calculateSectorCentroid(result)
+
+  result.centroid = centroid
+
   return result
 }
 

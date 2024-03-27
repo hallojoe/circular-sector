@@ -9,6 +9,30 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel): strin
 
   const largeArcFlag = getLargeArcFlag(sector.ratio)
 
+  if(sector.ratio >= .9999) {
+
+    const pathData = [
+      "M",
+      sector.anchors.outer.end.x,
+      sector.anchors.outer.end.y,
+      "A",
+      sector.source.radius,
+      sector.source.radius,
+      largeArcFlag,
+      sector.anchors.outer.start.x,
+      sector.anchors.outer.start.y,
+      "A",
+      sector.source.radius,
+      sector.source.radius,
+      largeArcFlag.split(" ").reverse().join(" "),
+      sector.anchors.outer.end.x,
+      sector.anchors.outer.end.y,
+    ]
+
+    return pathData.join(" ")
+    
+  }
+
   const pathData = [
     "M",
     sector.anchors.outer.end.x,
@@ -24,6 +48,9 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel): strin
     sector.anchors.inner.start.y
   ]
 
+
+
+
   // If path is not annular then draw line to inner mid point and close path
   if (sector.anchors.inner.mid === sector.anchors.inner.end) {
 
@@ -33,8 +60,8 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel): strin
       sector.anchors.inner.mid.y,
       "Z"
     )
-
   }
+
   // When path is annular draw annular path
   else {
 
