@@ -1,37 +1,196 @@
 # Circular Sector
 
-A set of functions computing cartesian coordinates, describing circular and annular sectors.
+Utilities for calculating the geometry needed to draw circular sectors and annular circular sectors.
 
-Usable for drawing circular things on ex. `svg` and `canvas` elements, but not bound to either of them.
+The package is aimed at rendering workflows where you need coordinates and path data rather than a UI framework. It works well for SVG, Canvas, charting, dashboards, gauges, progress arcs, radial menus, and other circular visualizations.
 
-Great for circular visualisations like spread, progress and reticulated splines. No dependencies.
+## Features
 
-## Install
+- Create geometry for solid circular sectors
+- Create geometry for annular sectors using `height`
+- Apply linear gaps between sectors
+- Build SVG path data for sectors and annular sectors
+- Calculate centroids for both sector types
+- Use small geometry helpers independently when needed
 
-`npm install @casko/circular-sector`
+## Installation
 
-## Use
-
-``` ts
-TODO: Add code...
-
+```bash
+npm install @casko/circular-sector
 ```
 
-## Demo  
+## Importing
 
-TODO: Add demo link...
+The current package layout exposes the compiled modules directly from `dist`, so import the specific files you need:
 
-## Todo
+```ts
+import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
+import { buildCircularSectorPath } from "@casko/circular-sector/dist/buildCircularSectorPath"
+```
 
-  - ~~Add links to demo~~
-  - Centroid(s)
+## Core Concepts
 
-# Notes
+### Circular sector
 
- - 1.0.0 - Init
- - 1.0.1 - Update demo and minimize readme.
- - 2.0.0 - Extract and clean up things. Add "rounded corners" option.
+A wedge shape defined by:
 
-## See you
+- `center`
+- `radius`
+- `ratio`
+- `theta`
 
-Thanks for getting this far. Please share result of usage.
+### Annular circular sector
+
+A ring-shaped sector defined by the same settings plus:
+
+- `height`
+
+The inner radius is derived as:
+
+```ts
+innerRadius = radius - height
+```
+
+### Gap
+
+`gap` is treated as a linear distance along the outer arc. The library converts that into an angular trim and recalculates the geometry.
+
+## Main API
+
+### `createCircularSectorViewModel(input)`
+
+Creates the derived geometry for a circular or annular sector.
+
+Important input fields:
+
+- `center`: `{ x, y }`
+- `radius`: outer radius
+- `ratio`: portion of a full circle, where `1` means a full circle
+- `theta`: start angle in radians
+- `gap`: linear gap distance along the arc
+- `height`: thickness of an annular sector
+- `borderRadius`: optional setting stored in the model, not currently used by the path builder
+
+Returns a view model containing:
+
+- `source`
+- `ratio`
+- `radius`
+- `center`
+- `angles`
+- `anchors.outer`
+- `anchors.middle`
+- `anchors.inner`
+- `anchors.centroid`
+
+### `buildCircularSectorPath(sector, pathRadius?)`
+
+Builds an SVG path string from a sector view model.
+
+- `pathRadius = 0` builds a normal sharp-cornered path
+- `pathRadius > 0` builds a rounded path
+
+## Example: Build SVG Path Data
+
+```ts
+import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
+import { buildCircularSectorPath } from "@casko/circular-sector/dist/buildCircularSectorPath"
+
+const sector = createCircularSectorViewModel({
+  center: { x: 150, y: 150 },
+  radius: 100,
+  ratio: 0.25,
+  theta: -Math.PI / 2,
+  gap: 8,
+  height: 40,
+  borderRadius: 0
+})
+
+const path = buildCircularSectorPath(sector, 8)
+```
+
+Example SVG usage:
+
+```html
+<svg viewBox="0 0 300 300">
+  <path d="..." fill="tomato"></path>
+</svg>
+```
+
+Replace `d="..."` with the generated `path` string.
+
+## Example: Access Calculated Geometry
+
+```ts
+import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
+
+const sector = createCircularSectorViewModel({
+  center: { x: 0, y: 0 },
+  radius: 120,
+  ratio: 0.2,
+  theta: 0,
+  gap: 6,
+  height: 0
+})
+
+console.log(sector.angles)
+console.log(sector.anchors.outer.start)
+console.log(sector.anchors.outer.mid)
+console.log(sector.anchors.outer.end)
+console.log(sector.anchors.centroid)
+```
+
+## Helper Functions
+
+The package also includes focused helpers for common geometry tasks:
+
+- `calculateSectorAngles`
+- `calculateArcPoints`
+- `calculateSectorCentroid`
+- `calculateAnnularSectorCentroid`
+- `calculateLineIntersection`
+- `calculateDistanceBetweenPoints`
+- `calculateMidpoint`
+- `calculateEndPointOfLine`
+- `calculateCircleArea`
+- `calculateCircleCircumference`
+- `calculateSectorLengthInRadians`
+- `calculateIsoscelesTriangleHeight`
+- `calculatePolarToCartesian`
+
+## Angles
+
+Angles are expressed in radians.
+
+Common values:
+
+- `0` points to the right
+- `Math.PI / 2` points down
+- `Math.PI` points left
+- `-Math.PI / 2` points up
+
+This follows the normal screen-coordinate convention used by SVG and Canvas, where positive `y` goes downward.
+
+## Development
+
+Build:
+
+```bash
+npm run build
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch tests:
+
+```bash
+npm run test:watch
+```
+
+## License
+
+MIT

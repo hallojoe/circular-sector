@@ -1,10 +1,13 @@
 import { ICircularSectorViewModel } from "./Interfaces"
-import { createCircularSectorViewModel } from "./createCircularSectorViewModel";
+import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
 
-export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRadius:number = 0): string {
+/**
+ * Builds an SVG path for a circular or annular sector.
+ * Pass a positive `pathRadius` to round the corners with quadratic and cubic segments.
+ */
+export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRadius: number = 0): string {
+  if (pathRadius > 0) return buildCircularSectorPathWithRadius(sector, pathRadius)
 
-  if(pathRadius > 0) return buildCircularSectorPathWithRadius(sector)
-  
   const largeArcFlag = getLargeArcFlag(sector.ratio)
 
   const pathData = [
@@ -22,20 +25,17 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRa
     sector.anchors.inner.start.y
   ]
 
-  // If path is not annular then draw line to inner mid point and close path
+  // Non-annular sectors close back to the center point.
   if (sector.anchors.inner.mid === sector.anchors.inner.end) {
-
     pathData.push(
       "L",
       sector.anchors.inner.mid.x,
       sector.anchors.inner.mid.y,
       "Z"
     )
-
   }
-  // When path is annular draw annular path
+  // Annular sectors return along the inner arc before closing.
   else {
-    
     pathData.push(
       "L",
       sector.anchors.inner.start.x,
@@ -51,34 +51,23 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRa
   }
 
   return pathData.join(" ")
-
 }
 
-function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pathRadius:number = 0): string {
+function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pathRadius: number = 0): string {
+  if (pathRadius < 1) return buildCircularSectorPath(sector)
 
-  if(pathRadius < 1) return buildCircularSectorPath(sector)
-
-  // Create a short sector by adding substracting from height and radius
-  const sectorShort:ICircularSectorViewModel = createCircularSectorViewModel({
+  // Shrink the sector to create room for the rounded corners.
+  const sectorShort: ICircularSectorViewModel = createCircularSectorViewModel({
     ...sector.source,
-    radius: sector.source.radius - (pathRadius * 1),
+    radius: sector.source.radius - pathRadius,
     height: sector.source.height - (pathRadius * 2)
   })
 
-  // Create a narrow sector by adding to gap
+  // Narrow the sector to find the arc endpoints after rounding.
   const sectorNarrow = createCircularSectorViewModel({
     ...sector.source,
-    gap: sector.source.gap + (sector.source.gap * 2)
+    gap: sector.source.gap + (pathRadius * 2)
   })
-
-  const sectorInner = createCircularSectorViewModel({
-    ...sector.source   
-  })
-
-  // const circularSectorsDebugPath = `
-  //   ${buildCircularPath(sectorInner)} 
-  //   ${buildCircularPath(sectorNarrow)} 
-  //   ${buildCircularPath(sectorShort)} `
 
   const largeArcFlag = getLargeArcFlag(sector.ratio)
 
@@ -109,12 +98,10 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
     "L",
     sectorShort.anchors.inner.start.x,
     sectorShort.anchors.inner.start.y,
-
-
   ]
-  // If path is not annular then draw cubic curve directly to sector short inner end
-  if (sectorNarrow.anchors.inner.mid === sectorNarrow.anchors.inner.end) {
 
+  // Non-annular sectors use a cubic curve back to the shrunken center edge.
+  if (sectorNarrow.anchors.inner.mid === sectorNarrow.anchors.inner.end) {
     pathData.push(
       "C",
       sector.anchors.inner.start.x,
@@ -124,11 +111,9 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
       sectorShort.anchors.inner.end.x,
       sectorShort.anchors.inner.end.y
     )
-
   }
-  // As usual
+  // Annular sectors round into the inner arc and then follow it back out.
   else {
-
     pathData.push(
       "Q",
       sector.anchors.inner.start.x,
@@ -140,14 +125,13 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
       sectorNarrow.source.radius - sector.source.height,
       largeArcFlag.split(" ").reverse().join(" "),
       sectorNarrow.anchors.inner.end.x,
-      sectorNarrow.anchors.inner.end.y,  
+      sectorNarrow.anchors.inner.end.y,
       "Q",
       sector.anchors.inner.end.x,
       sector.anchors.inner.end.y,
       sectorShort.anchors.inner.end.x,
       sectorShort.anchors.inner.end.y
     )
-
   }
 
   pathData.push(
@@ -158,11 +142,9 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
   )
 
   return pathData.join(" ")
-
-
 }
 
 function getLargeArcFlag(ratio: number, invert: boolean = false) {
-  const largeArcFlag = ratio * 360 > 180 ? "0 1 1" : "0 0 1";
-  return !invert ? largeArcFlag : largeArcFlag.split(" ").reverse().join(" ");
+  const largeArcFlag = ratio * 360 > 180 ? "0 1 1" : "0 0 1"
+  return !invert ? largeArcFlag : largeArcFlag.split(" ").reverse().join(" ")
 }

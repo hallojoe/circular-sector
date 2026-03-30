@@ -4,8 +4,10 @@
     "declaration": true,
     "module": "commonjs",
     "outDir": "./dist",
+    "rootDir": "./src",
     "strict": true,
-    "removeComments": false
+    "removeComments": false,
+    "ignoreDeprecations": "6.0"
   },
   "include": [
     "src/**/*.ts"
