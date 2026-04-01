@@ -11,6 +11,7 @@ The package is aimed at rendering workflows where you need coordinates and path 
 - Apply linear gaps between sectors
 - Build SVG path data for sectors and annular sectors
 - Build sector paths using multiple drawing styles
+- Build open guide paths for sector text labels
 - Calculate centroids for both sector types
 - Use small geometry helpers independently when needed
 
@@ -26,6 +27,7 @@ Import from the package root:
 
 ```ts
 import {
+  buildCircularSectorGuidePath,
   buildCircularSectorPath,
   buildCircularSectorPathByMode,
   createCircularSectorViewModel
@@ -113,6 +115,19 @@ Mode summary:
 - `beveled`: angular path with chamfered corners
 - `faceted`: arc approximated with straight line segments
 
+### `buildCircularSectorGuidePath(sector, options?)`
+
+Builds an open SVG path suitable for `<textPath>` labels.
+
+Supported options:
+
+- `ring`: `"outer" | "middle" | "inner"`
+
+Notes:
+
+- The guide path uses the sector's already-trimmed anchor geometry so it stays aligned with gapped/trimmed sector placement.
+- For solid sectors, `ring: "inner"` collapses to the center point because there is no inner arc to follow.
+
 ## Example: Build SVG Path Data
 
 ```ts
@@ -165,6 +180,43 @@ const facetedPath = buildCircularSectorPathByMode(sector, {
   mode: "faceted",
   facetCount: 8
 })
+```
+
+## Example: Build A Text Guide Path
+
+```ts
+import {
+  buildCircularSectorGuidePath,
+  createCircularSectorViewModel
+} from "@casko/circular-sector"
+
+const sector = createCircularSectorViewModel({
+  center: { x: 150, y: 150 },
+  radius: 100,
+  ratio: 0.25,
+  theta: -Math.PI / 2,
+  gap: 8,
+  height: 40,
+  borderRadius: 0
+})
+
+const labelGuidePath = buildCircularSectorGuidePath(sector, {
+  ring: "middle"
+})
+```
+
+Example SVG usage:
+
+```html
+<svg viewBox="0 0 300 300">
+  <defs>
+    <path id="sector-label-guide" d="..."></path>
+  </defs>
+
+  <text>
+    <textPath href="#sector-label-guide">Quarterly Revenue</textPath>
+  </text>
+</svg>
 ```
 
 Example SVG usage:

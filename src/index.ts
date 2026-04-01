@@ -1,4 +1,5 @@
 export * from "./Interfaces"
+export * from "./buildCircularSectorGuidePath"
 export * from "./buildCircularSectorPath"
 export * from "./buildCircularSectorPathByMode"
 export * from "./calculateAnnularSectorCentroid"
