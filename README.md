@@ -10,6 +10,7 @@ The package is aimed at rendering workflows where you need coordinates and path 
 - Create geometry for annular sectors using `height`
 - Apply linear gaps between sectors
 - Build SVG path data for sectors and annular sectors
+- Build sector paths using multiple drawing styles
 - Calculate centroids for both sector types
 - Use small geometry helpers independently when needed
 
@@ -21,11 +22,14 @@ npm install @casko/circular-sector
 
 ## Importing
 
-The current package layout exposes the compiled modules directly from `dist`, so import the specific files you need:
+Import from the package root:
 
 ```ts
-import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
-import { buildCircularSectorPath } from "@casko/circular-sector/dist/buildCircularSectorPath"
+import {
+  buildCircularSectorPath,
+  buildCircularSectorPathByMode,
+  createCircularSectorViewModel
+} from "@casko/circular-sector"
 ```
 
 ## Core Concepts
@@ -90,11 +94,32 @@ Builds an SVG path string from a sector view model.
 - `pathRadius = 0` builds a normal sharp-cornered path
 - `pathRadius > 0` builds a rounded path
 
+### `buildCircularSectorPathByMode(sector, options?)`
+
+Builds an SVG path string from a sector view model using a selectable drawing mode.
+
+Supported options:
+
+- `mode`: `"arc" | "rounded" | "angular" | "beveled" | "faceted"`
+- `cornerRadius`: used by `"rounded"`
+- `bevelSize`: used by `"beveled"`
+- `facetCount`: used by `"faceted"`
+
+Mode summary:
+
+- `arc`: circular or annular sector using SVG arc commands
+- `rounded`: rounded transitions based on a corner radius
+- `angular`: line-only polygon using outer and inner anchor points
+- `beveled`: angular path with chamfered corners
+- `faceted`: arc approximated with straight line segments
+
 ## Example: Build SVG Path Data
 
 ```ts
-import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
-import { buildCircularSectorPath } from "@casko/circular-sector/dist/buildCircularSectorPath"
+import {
+  buildCircularSectorPath,
+  createCircularSectorViewModel
+} from "@casko/circular-sector"
 
 const sector = createCircularSectorViewModel({
   center: { x: 150, y: 150 },
@@ -107,6 +132,39 @@ const sector = createCircularSectorViewModel({
 })
 
 const path = buildCircularSectorPath(sector, 8)
+```
+
+## Example: Build Styled SVG Path Data
+
+```ts
+import {
+  buildCircularSectorPathByMode,
+  createCircularSectorViewModel
+} from "@casko/circular-sector"
+
+const sector = createCircularSectorViewModel({
+  center: { x: 150, y: 150 },
+  radius: 100,
+  ratio: 0.25,
+  theta: -Math.PI / 2,
+  gap: 8,
+  height: 40,
+  borderRadius: 0
+})
+
+const angularPath = buildCircularSectorPathByMode(sector, {
+  mode: "angular"
+})
+
+const beveledPath = buildCircularSectorPathByMode(sector, {
+  mode: "beveled",
+  bevelSize: 10
+})
+
+const facetedPath = buildCircularSectorPathByMode(sector, {
+  mode: "faceted",
+  facetCount: 8
+})
 ```
 
 Example SVG usage:
@@ -122,7 +180,7 @@ Replace `d="..."` with the generated `path` string.
 ## Example: Access Calculated Geometry
 
 ```ts
-import { createCircularSectorViewModel } from "@casko/circular-sector/dist/createCircularSectorViewModel"
+import { createCircularSectorViewModel } from "@casko/circular-sector"
 
 const sector = createCircularSectorViewModel({
   center: { x: 0, y: 0 },
