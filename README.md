@@ -30,6 +30,7 @@ import {
   buildCircularSectorGuidePath,
   buildCircularSectorPath,
   buildCircularSectorPathByMode,
+  buildRectangularSectorPathByMode,
   createCircularSectorViewModel
 } from "@casko/circular-sector"
 ```
@@ -102,10 +103,13 @@ Builds an SVG path string from a sector view model using a selectable drawing mo
 
 Supported options:
 
-- `mode`: `"arc" | "rounded" | "angular" | "beveled" | "faceted"`
+- `mode`: `"arc" | "rounded" | "angular" | "beveled" | "faceted" | "scalloped" | "stepped" | "burst"`
 - `cornerRadius`: used by `"rounded"`
 - `bevelSize`: used by `"beveled"`
 - `facetCount`: used by `"faceted"`
+- `scallopCount` and `scallopDepth`: used by `"scalloped"`
+- `stepCount` and `stepInset`: used by `"stepped"`
+- `burstCount` and `burstDepth`: used by `"burst"`
 
 Mode summary:
 
@@ -114,6 +118,9 @@ Mode summary:
 - `angular`: line-only polygon using outer and inner anchor points
 - `beveled`: angular path with chamfered corners
 - `faceted`: arc approximated with straight line segments
+- `scalloped`: playful curved bumps along the outer edge while keeping the normal sector closure
+- `stepped`: terrace-like outer and inner edges made from straight segments
+- `burst`: outward spikes along the outer edge with the normal inner closure
 
 ### `buildCircularSectorGuidePath(sector, options?)`
 
@@ -127,6 +134,22 @@ Notes:
 
 - The guide path uses the sector's already-trimmed anchor geometry so it stays aligned with gapped/trimmed sector placement.
 - For solid sectors, `ring: "inner"` collapses to the center point because there is no inner arc to follow.
+
+### `buildRectangularSectorPathByMode(sector, options?)`
+
+Builds an SVG path string from the same sector view model, but reinterprets it as an axis-aligned rectangular slice.
+
+Supported options:
+
+- `mode`: `"vertical" | "horizontal"`
+
+Notes:
+
+- `radius` is treated as the outer rectangular span.
+- `height` is treated as the reduction from the outer span to the inner span.
+- `ratio` fills the primary span only.
+- `theta` selects the anchor side.
+- `gap` is not reinterpreted for rectangles in v1; the rectangular builder uses raw `source` dimensions and `center` placement.
 
 ## Example: Build SVG Path Data
 
@@ -180,7 +203,35 @@ const facetedPath = buildCircularSectorPathByMode(sector, {
   mode: "faceted",
   facetCount: 8
 })
+
+const scallopedPath = buildCircularSectorPathByMode(sector, {
+  mode: "scalloped",
+  scallopCount: 6,
+  scallopDepth: 5
+})
+
+const steppedPath = buildCircularSectorPathByMode(sector, {
+  mode: "stepped",
+  stepCount: 5,
+  stepInset: 6
+})
+
+const burstPath = buildCircularSectorPathByMode(sector, {
+  mode: "burst",
+  burstCount: 8,
+  burstDepth: 10
+})
+
+const rectangularVerticalPath = buildRectangularSectorPathByMode(sector, {
+  mode: "vertical"
+})
+
+const rectangularHorizontalPath = buildRectangularSectorPathByMode(sector, {
+  mode: "horizontal"
+})
 ```
+
+The playful modes are designed for decorative-but-readable use cases like badges, radial menus, dashboards, and stylized charts. They preserve the same sector geometry and gap trimming while reinterpreting the silhouette.
 
 ## Example: Build A Text Guide Path
 

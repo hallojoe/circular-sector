@@ -1,4 +1,5 @@
 import { ICircularSectorViewModel, IPoint } from "./Interfaces"
+import { calculatePolarToCartesian } from "./convertPolarToCartesian"
 import { createArcFacetPoints } from "./createArcFacetPoints"
 import { createBeveledPolygon } from "./createBeveledPolygon"
 import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
@@ -9,12 +10,21 @@ export type CircularSectorPathMode =
   | "angular"
   | "beveled"
   | "faceted"
+  | "scalloped"
+  | "stepped"
+  | "burst"
 
 export interface ICircularSectorPathOptions {
   mode?: CircularSectorPathMode
   cornerRadius?: number
   bevelSize?: number
   facetCount?: number
+  scallopCount?: number
+  scallopDepth?: number
+  stepCount?: number
+  stepInset?: number
+  burstCount?: number
+  burstDepth?: number
 }
 
 /**
@@ -36,6 +46,15 @@ export function buildCircularSectorPathByMode(
 
     case "faceted":
       return buildFacetedSectorPath(sector, options.facetCount ?? 6)
+
+    case "scalloped":
+      return buildScallopedSectorPath(sector, options)
+
+    case "stepped":
+      return buildSteppedSectorPath(sector, options)
+
+    case "burst":
+      return buildBurstSectorPath(sector, options)
 
     case "arc":
     default:
@@ -61,24 +80,7 @@ function buildArcSectorPath(sector: ICircularSectorViewModel): string {
     sector.anchors.inner.start.y
   ]
 
-  if (isPieSector(sector)) {
-    pathData.push(
-      "L",
-      sector.center.x,
-      sector.center.y,
-      "Z"
-    )
-  } else {
-    pathData.push(
-      "A",
-      innerRadius,
-      innerRadius,
-      getLargeArcFlag(sector.ratio, true),
-      sector.anchors.inner.end.x,
-      sector.anchors.inner.end.y,
-      "Z"
-    )
-  }
+  appendInnerClosure(pathData, sector, innerRadius)
 
   return pathData.join(" ")
 }
@@ -233,6 +235,154 @@ function buildFacetedSectorPath(sector: ICircularSectorViewModel, facetCount: nu
   ])
 }
 
+function buildScallopedSectorPath(
+  sector: ICircularSectorViewModel,
+  options: ICircularSectorPathOptions
+): string {
+  const scallopCount = sanitizeDivisionCount(options.scallopCount ?? 6)
+  const depth = clampDecorativeDepth(
+    getRequestedScallopDepth(sector, options.scallopDepth),
+    sector.source.radius,
+    getArcSpan(sector),
+    scallopCount
+  )
+
+  if (depth < 1) return buildArcSectorPath(sector)
+
+  const boundaryAngles = createSampleAngles(sector.angles.end, sector.angles.start, scallopCount)
+  const pathData: Array<string | number> = [
+    "M",
+    sector.anchors.outer.end.x,
+    sector.anchors.outer.end.y
+  ]
+
+  for (let index = 0; index < boundaryAngles.length - 1; index++) {
+    const startAngle = boundaryAngles[index]
+    const endAngle = boundaryAngles[index + 1]
+    const midAngle = (startAngle + endAngle) / 2
+    const endPoint = calculatePolarToCartesian(sector.center, sector.source.radius, endAngle)
+    const controlPoint = calculatePolarToCartesian(sector.center, sector.source.radius + depth, midAngle)
+
+    pathData.push(
+      "Q",
+      controlPoint.x,
+      controlPoint.y,
+      endPoint.x,
+      endPoint.y
+    )
+  }
+
+  pathData.push(
+    "L",
+    sector.anchors.inner.start.x,
+    sector.anchors.inner.start.y
+  )
+
+  appendInnerClosure(pathData, sector, getInnerRadius(sector))
+
+  return pathData.join(" ")
+}
+
+function buildSteppedSectorPath(
+  sector: ICircularSectorViewModel,
+  options: ICircularSectorPathOptions
+): string {
+  const stepCount = sanitizeDivisionCount(options.stepCount ?? 5)
+  const inset = clampStepInset(sector, options.stepInset, stepCount)
+
+  if (inset < 1 && isPieSector(sector)) {
+    return buildAngularSectorPath(sector)
+  }
+
+  const outerPoints = createSteppedArcPoints(
+    sector.center,
+    sector.angles.end,
+    sector.angles.start,
+    sector.source.radius,
+    Math.max(0, sector.source.radius - inset),
+    stepCount
+  )
+
+  if (isPieSector(sector)) {
+    return buildLinearClosedPath([
+      ...outerPoints,
+      sector.center
+    ])
+  }
+
+  const innerRadius = getInnerRadius(sector)
+  const safeInnerInset = Math.min(
+    inset,
+    Math.max(0, (sector.source.height / 2) - 0.001),
+    Math.max(0, sector.source.radius - innerRadius - 0.001)
+  )
+
+  const innerPoints = createSteppedArcPoints(
+    sector.center,
+    sector.angles.start,
+    sector.angles.end,
+    innerRadius,
+    innerRadius + safeInnerInset,
+    stepCount
+  )
+
+  return buildLinearClosedPath([
+    ...outerPoints,
+    ...innerPoints
+  ])
+}
+
+function buildBurstSectorPath(
+  sector: ICircularSectorViewModel,
+  options: ICircularSectorPathOptions
+): string {
+  const burstCount = sanitizeDivisionCount(options.burstCount ?? 8)
+  const depth = clampDecorativeDepth(
+    getRequestedBurstDepth(sector, options.burstDepth),
+    sector.source.radius,
+    getArcSpan(sector),
+    burstCount * 2
+  )
+
+  if (depth < 1) {
+    return buildFacetedSectorPath(sector, burstCount)
+  }
+
+  const boundaryAngles = createSampleAngles(sector.angles.end, sector.angles.start, burstCount)
+  const pathData: Array<string | number> = [
+    "M",
+    sector.anchors.outer.end.x,
+    sector.anchors.outer.end.y
+  ]
+
+  for (let index = 0; index < boundaryAngles.length - 1; index++) {
+    const startAngle = boundaryAngles[index]
+    const endAngle = boundaryAngles[index + 1]
+    const midAngle = (startAngle + endAngle) / 2
+    const tipPoint = calculatePolarToCartesian(sector.center, sector.source.radius + depth, midAngle)
+    const endPoint = calculatePolarToCartesian(sector.center, sector.source.radius, endAngle)
+
+    pathData.push(
+      "L",
+      tipPoint.x,
+      tipPoint.y,
+      "L",
+      endPoint.x,
+      endPoint.y
+    )
+  }
+
+  pathData.push(
+    "L",
+    sector.anchors.inner.start.x,
+    sector.anchors.inner.start.y
+  )
+
+  appendInnerClosure(pathData, sector, getInnerRadius(sector))
+
+  return pathData.join(" ")
+}
+
 function createAngularPolygon(sector: ICircularSectorViewModel): IPoint[] {
   const outerPoints = [
     sector.anchors.outer.end,
@@ -255,6 +405,131 @@ function createAngularPolygon(sector: ICircularSectorViewModel): IPoint[] {
   ]
 }
 
+function createSteppedArcPoints(
+  center: IPoint,
+  startAngle: number,
+  endAngle: number,
+  baseRadius: number,
+  terraceRadius: number,
+  stepCount: number
+): IPoint[] {
+  const sampleAngles = createSampleAngles(startAngle, endAngle, stepCount)
+  const points: IPoint[] = [
+    calculatePolarToCartesian(center, baseRadius, sampleAngles[0])
+  ]
+
+  for (let index = 0; index < sampleAngles.length - 1; index++) {
+    const currentAngle = sampleAngles[index]
+    const nextAngle = sampleAngles[index + 1]
+
+    points.push(
+      calculatePolarToCartesian(center, terraceRadius, currentAngle),
+      calculatePolarToCartesian(center, terraceRadius, nextAngle),
+      calculatePolarToCartesian(center, baseRadius, nextAngle)
+    )
+  }
+
+  return points
+}
+
+function createSampleAngles(startAngle: number, endAngle: number, divisionCount: number): number[] {
+  const safeDivisionCount = sanitizeDivisionCount(divisionCount)
+  const angles: number[] = []
+
+  for (let index = 0; index <= safeDivisionCount; index++) {
+    angles.push(startAngle + ((endAngle - startAngle) * (index / safeDivisionCount)))
+  }
+
+  return angles
+}
+
+function clampStepInset(
+  sector: ICircularSectorViewModel,
+  requestedInset: number | undefined,
+  stepCount: number
+): number {
+  const defaultInset = getRequestedStepInset(sector, requestedInset)
+  const arcClamp = clampDecorativeDepth(defaultInset, sector.source.radius, getArcSpan(sector), stepCount)
+
+  if (isPieSector(sector)) {
+    return Math.min(arcClamp, Math.max(0, sector.source.radius - 1))
+  }
+
+  return Math.min(
+    arcClamp,
+    Math.max(0, (sector.source.height / 2) - 0.001)
+  )
+}
+
+function clampDecorativeDepth(
+  requestedDepth: number,
+  radius: number,
+  arcSpan: number,
+  divisionCount: number
+): number {
+  const safeRequestedDepth = Number.isFinite(requestedDepth)
+    ? Math.max(0, requestedDepth)
+    : 0
+  const segmentLength = radius * (arcSpan / sanitizeDivisionCount(divisionCount))
+
+  return Math.min(
+    safeRequestedDepth,
+    Math.max(0, radius - 1),
+    Math.max(0, segmentLength / 2)
+  )
+}
+
+function getRequestedScallopDepth(sector: ICircularSectorViewModel, requestedDepth?: number): number {
+  if (typeof requestedDepth === "number") return requestedDepth
+
+  const radiusCap = sector.source.radius * 0.06
+
+  if (isPieSector(sector)) {
+    return radiusCap
+  }
+
+  return Math.min(radiusCap, Math.max(4, sector.source.height / 3))
+}
+
+function getRequestedStepInset(sector: ICircularSectorViewModel, requestedInset?: number): number {
+  if (typeof requestedInset === "number") return requestedInset
+
+  return Math.min(sector.source.radius * 0.08, Math.max(4, sector.source.height / 2))
+}
+
+function getRequestedBurstDepth(sector: ICircularSectorViewModel, requestedDepth?: number): number {
+  if (typeof requestedDepth === "number") return requestedDepth
+
+  return Math.min(sector.source.radius * 0.1, Math.max(6, sector.source.height / 2))
+}
+
+function appendInnerClosure(
+  pathData: Array<string | number>,
+  sector: ICircularSectorViewModel,
+  innerRadius: number
+) {
+  if (isPieSector(sector)) {
+    pathData.push(
+      "L",
+      sector.center.x,
+      sector.center.y,
+      "Z"
+    )
+
+    return
+  }
+
+  pathData.push(
+    "A",
+    innerRadius,
+    innerRadius,
+    getLargeArcFlag(sector.ratio, true),
+    sector.anchors.inner.end.x,
+    sector.anchors.inner.end.y,
+    "Z"
+  )
+}
+
 function buildLinearClosedPath(points: IPoint[]): string {
   const pathData: Array<string | number> = ["M", points[0].x, points[0].y]
 
@@ -265,6 +540,14 @@ function buildLinearClosedPath(points: IPoint[]): string {
   pathData.push("Z")
 
   return pathData.join(" ")
+}
+
+function sanitizeDivisionCount(count: number): number {
+  return Math.max(2, Math.floor(count))
+}
+
+function getArcSpan(sector: ICircularSectorViewModel): number {
+  return Math.abs(sector.angles.end - sector.angles.start)
 }
 
 function isPieSector(sector: ICircularSectorViewModel): boolean {
