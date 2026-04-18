@@ -1,13 +1,19 @@
 import { ICircularSectorViewModel } from "./Interfaces"
 
 export type RectangularSectorPathMode = "vertical" | "horizontal"
+export type RectangularSectorPathLayout = "many" | "single"
+export type RectangularSectorPathDirection = "top-down" | "bottom-up" | "left-right" | "right-left"
 
 export interface IRectangularSectorPathOptions {
   mode?: RectangularSectorPathMode
+  layout?: RectangularSectorPathLayout
+  direction?: RectangularSectorPathDirection
   cornerRadius?: number
   size?: number
   stackIndex?: number
   stackCount?: number
+  segmentIndex?: number
+  segmentRatios?: number[]
 }
 
 interface IRect {
@@ -28,13 +34,16 @@ interface IRect {
  *   - width for `horizontal`
  *   - height for `vertical`
  * - `stackIndex` and `stackCount` place each bar inside a centered stack.
- * - `gap` separates both stacked bars and filled/remaining segments.
+ * - `layout` chooses either one bar per sector (`many`) or one segmented bar per layer (`single`).
+ * - `direction` controls the flow of stacked bars or segmented parts.
+ * - `gap` separates both stacked bars and inner segments.
  */
 export function buildRectangularSectorPathByMode(
   sector: ICircularSectorViewModel,
   options: IRectangularSectorPathOptions = {}
 ): string {
   const mode = options.mode ?? "vertical"
+  const layout = options.layout ?? "many"
   const totalSpan = Math.max(0, sector.source.radius)
   const barSpan = clamp(sector.source.height > 0 ? sector.source.height : totalSpan, 0, totalSpan)
   const ratio = clamp(sector.source.ratio, 0, 1)
@@ -48,6 +57,31 @@ export function buildRectangularSectorPathByMode(
   const stackIndex = clamp(Math.floor(options.stackIndex ?? 0), 0, stackCount - 1)
   const stackGap = clamp(sector.source.gap, 0, totalSpan)
   const stackSpan = (stackCount * thickness) + (Math.max(0, stackCount - 1) * stackGap)
+  const direction = sanitizeDirection(mode, options.direction)
+
+  if (layout === "single") {
+    return mode === "horizontal"
+      ? buildSingleHorizontalBand(
+        sector,
+        barSpan,
+        thickness,
+        ratio,
+        direction,
+        options.segmentRatios ?? [ratio],
+        options.segmentIndex ?? 0,
+        cornerRadius
+      )
+      : buildSingleVerticalBand(
+        sector,
+        barSpan,
+        thickness,
+        ratio,
+        direction,
+        options.segmentRatios ?? [ratio],
+        options.segmentIndex ?? 0,
+        cornerRadius
+      )
+  }
 
   if (mode === "horizontal") {
     return buildHorizontalBars(
@@ -58,6 +92,7 @@ export function buildRectangularSectorPathByMode(
       stackSpan,
       stackGap,
       ratio,
+      direction,
       cornerRadius
     )
   }
@@ -70,6 +105,7 @@ export function buildRectangularSectorPathByMode(
     stackSpan,
     stackGap,
     ratio,
+    direction,
     cornerRadius
   )
 }
@@ -82,6 +118,7 @@ function buildHorizontalBars(
   stackSpan: number,
   stackGap: number,
   ratio: number,
+  direction: RectangularSectorPathDirection,
   cornerRadius: number
 ): string {
   const stackLeft = sector.source.center.x - (stackSpan / 2)
@@ -90,7 +127,7 @@ function buildHorizontalBars(
   const top = sector.source.center.y - (barSpan / 2)
   const bottom = sector.source.center.y + (barSpan / 2)
 
-  return buildBarPath(
+  return buildManyBarPath(
     {
       left,
       right,
@@ -100,6 +137,7 @@ function buildHorizontalBars(
     "vertical",
     barSpan,
     ratio,
+    direction,
     sector.source.gap,
     cornerRadius
   )
@@ -113,6 +151,7 @@ function buildVerticalBars(
   stackSpan: number,
   stackGap: number,
   ratio: number,
+  direction: RectangularSectorPathDirection,
   cornerRadius: number
 ): string {
   const stackTop = sector.source.center.y - (stackSpan / 2)
@@ -121,7 +160,7 @@ function buildVerticalBars(
   const top = stackTop + (stackIndex * (thickness + stackGap))
   const bottom = top + thickness
 
-  return buildBarPath(
+  return buildManyBarPath(
     {
       left,
       right,
@@ -131,16 +170,18 @@ function buildVerticalBars(
     "horizontal",
     barSpan,
     ratio,
+    direction,
     sector.source.gap,
     cornerRadius
   )
 }
 
-function buildBarPath(
+function buildManyBarPath(
   laneRect: IRect,
   orientation: "horizontal" | "vertical",
   barSpan: number,
   ratio: number,
+  direction: RectangularSectorPathDirection,
   gap: number,
   cornerRadius: number
 ): string {
@@ -157,38 +198,202 @@ function buildBarPath(
     return buildRoundedRectPath(laneRect, cornerRadius)
   }
 
-  const filledRect = orientation === "horizontal"
-    ? {
-      left: laneRect.left,
-      top: laneRect.top,
-      right: laneRect.left + filledSpan,
-      bottom: laneRect.bottom
-    }
-    : {
-      left: laneRect.left,
-      top: laneRect.top,
-      right: laneRect.right,
-      bottom: laneRect.top + filledSpan
-    }
-
-  const remainingRect = orientation === "horizontal"
-    ? {
-      left: filledRect.right + clampedGap,
-      top: laneRect.top,
-      right: filledRect.right + clampedGap + remainingSpan,
-      bottom: laneRect.bottom
-    }
-    : {
-      left: laneRect.left,
-      top: filledRect.bottom + clampedGap,
-      right: laneRect.right,
-      bottom: filledRect.bottom + clampedGap + remainingSpan
-    }
+  const [filledRect, remainingRect] = orientation === "horizontal"
+    ? createHorizontalSplitRects(laneRect, filledSpan, remainingSpan, clampedGap, direction === "right-left")
+    : createVerticalSplitRects(laneRect, filledSpan, remainingSpan, clampedGap, direction === "bottom-up")
 
   return [
     buildRoundedRectPath(filledRect, cornerRadius),
     buildRoundedRectPath(remainingRect, cornerRadius)
   ].join(" ")
+}
+
+function buildSingleHorizontalBand(
+  sector: ICircularSectorViewModel,
+  barSpan: number,
+  thickness: number,
+  ratio: number,
+  direction: RectangularSectorPathDirection,
+  segmentRatios: number[],
+  segmentIndex: number,
+  cornerRadius: number
+): string {
+  const laneRect = {
+    left: sector.source.center.x - (thickness / 2),
+    right: sector.source.center.x + (thickness / 2),
+    top: sector.source.center.y - (barSpan / 2),
+    bottom: sector.source.center.y + (barSpan / 2)
+  }
+
+  return buildSingleSegmentPath(laneRect, "vertical", barSpan, ratio, direction, sector.source.gap, segmentRatios, segmentIndex, cornerRadius)
+}
+
+function buildSingleVerticalBand(
+  sector: ICircularSectorViewModel,
+  barSpan: number,
+  thickness: number,
+  ratio: number,
+  direction: RectangularSectorPathDirection,
+  segmentRatios: number[],
+  segmentIndex: number,
+  cornerRadius: number
+): string {
+  const laneRect = {
+    left: sector.source.center.x - (barSpan / 2),
+    right: sector.source.center.x + (barSpan / 2),
+    top: sector.source.center.y - (thickness / 2),
+    bottom: sector.source.center.y + (thickness / 2)
+  }
+
+  return buildSingleSegmentPath(laneRect, "horizontal", barSpan, ratio, direction, sector.source.gap, segmentRatios, segmentIndex, cornerRadius)
+}
+
+function buildSingleSegmentPath(
+  laneRect: IRect,
+  orientation: "horizontal" | "vertical",
+  barSpan: number,
+  ratio: number,
+  direction: RectangularSectorPathDirection,
+  gap: number,
+  segmentRatios: number[],
+  segmentIndex: number,
+  cornerRadius: number
+): string {
+  if (barSpan <= 0 || isCollapsedRect(laneRect)) {
+    return buildRoundedRectPath(laneRect, cornerRadius)
+  }
+
+  const safeRatios = segmentRatios.map((value) => clamp(value, 0, 1))
+  const segmentCount = Math.max(1, safeRatios.length)
+  const clampedIndex = clamp(Math.floor(segmentIndex), 0, segmentCount - 1)
+  const clampedGap = clamp(gap, 0, barSpan)
+  const distributableSpan = Math.max(0, barSpan - (Math.max(0, segmentCount - 1) * clampedGap))
+  const segmentSpan = distributableSpan * clamp(ratio, 0, 1)
+  const orderedRatios = shouldReverseDirection(orientation, direction)
+    ? [...safeRatios].reverse()
+    : safeRatios
+  const orderedIndex = shouldReverseDirection(orientation, direction)
+    ? segmentCount - 1 - clampedIndex
+    : clampedIndex
+
+  let offset = 0
+  for (let index = 0; index < orderedIndex; index++) {
+    offset += distributableSpan * orderedRatios[index]
+    offset += clampedGap
+  }
+
+  const rect = orientation === "horizontal"
+    ? {
+      left: laneRect.left + offset,
+      top: laneRect.top,
+      right: laneRect.left + offset + segmentSpan,
+      bottom: laneRect.bottom
+    }
+    : {
+      left: laneRect.left,
+      top: laneRect.top + offset,
+      right: laneRect.right,
+      bottom: laneRect.top + offset + segmentSpan
+    }
+
+  return buildRoundedRectPath(rect, cornerRadius)
+}
+
+function createHorizontalSplitRects(
+  laneRect: IRect,
+  filledSpan: number,
+  remainingSpan: number,
+  gap: number,
+  reverse: boolean
+): [IRect, IRect] {
+  if (!reverse) {
+    return [
+      {
+        left: laneRect.left,
+        top: laneRect.top,
+        right: laneRect.left + filledSpan,
+        bottom: laneRect.bottom
+      },
+      {
+        left: laneRect.left + filledSpan + gap,
+        top: laneRect.top,
+        right: laneRect.left + filledSpan + gap + remainingSpan,
+        bottom: laneRect.bottom
+      }
+    ]
+  }
+
+  return [
+    {
+      left: laneRect.right - filledSpan,
+      top: laneRect.top,
+      right: laneRect.right,
+      bottom: laneRect.bottom
+    },
+    {
+      left: laneRect.right - filledSpan - gap - remainingSpan,
+      top: laneRect.top,
+      right: laneRect.right - filledSpan - gap,
+      bottom: laneRect.bottom
+    }
+  ]
+}
+
+function createVerticalSplitRects(
+  laneRect: IRect,
+  filledSpan: number,
+  remainingSpan: number,
+  gap: number,
+  reverse: boolean
+): [IRect, IRect] {
+  if (!reverse) {
+    return [
+      {
+        left: laneRect.left,
+        top: laneRect.top,
+        right: laneRect.right,
+        bottom: laneRect.top + filledSpan
+      },
+      {
+        left: laneRect.left,
+        top: laneRect.top + filledSpan + gap,
+        right: laneRect.right,
+        bottom: laneRect.top + filledSpan + gap + remainingSpan
+      }
+    ]
+  }
+
+  return [
+    {
+      left: laneRect.left,
+      top: laneRect.bottom - filledSpan,
+      right: laneRect.right,
+      bottom: laneRect.bottom
+    },
+    {
+      left: laneRect.left,
+      top: laneRect.bottom - filledSpan - gap - remainingSpan,
+      right: laneRect.right,
+      bottom: laneRect.bottom - filledSpan - gap
+    }
+  ]
+}
+
+function shouldReverseDirection(
+  orientation: "horizontal" | "vertical",
+  direction: RectangularSectorPathDirection
+): boolean {
+  return orientation === "horizontal"
+    ? direction === "right-left"
+    : direction === "bottom-up"
+}
+
+function sanitizeDirection(mode: RectangularSectorPathMode, direction?: RectangularSectorPathDirection): RectangularSectorPathDirection {
+  if (mode === "vertical") {
+    return direction === "right-left" ? "right-left" : "left-right"
+  }
+
+  return direction === "bottom-up" ? "bottom-up" : "top-down"
 }
 
 function buildRoundedRectPath(rect: IRect, requestedRadius: number): string {

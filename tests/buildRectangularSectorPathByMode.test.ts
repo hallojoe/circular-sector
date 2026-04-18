@@ -201,6 +201,68 @@ describe("buildRectangularSectorPathByMode", () => {
     expect(path.split(" M ").length).toBe(2)
   })
 
+  it("supports reversed direction for many horizontal bars", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 40,
+      ratio: 0.25,
+      theta: -Math.PI / 2,
+      gap: 4,
+      height: 8
+    })
+
+    const path = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      direction: "bottom-up"
+    })
+
+    expect(path).toBe("M -4 3 L 4 3 L 4 4 L -4 4 Z M -4 -4 L 4 -4 L 4 -1 L -4 -1 Z")
+  })
+
+  it("renders a single segmented vertical band with one part per sector", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 100,
+      ratio: 0.3,
+      theta: -Math.PI / 2,
+      gap: 10,
+      height: 60
+    })
+
+    const path = buildRectangularSectorPathByMode(sector, {
+      mode: "vertical",
+      layout: "single",
+      size: 20,
+      segmentRatios: [0.2, 0.3, 0.5],
+      segmentIndex: 1,
+      direction: "left-right"
+    })
+
+    expect(path).toBe("M -12 -10 L 0 -10 L 0 10 L -12 10 Z")
+  })
+
+  it("renders single segmented horizontal bands in reverse order when requested", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 100,
+      ratio: 0.2,
+      theta: -Math.PI / 2,
+      gap: 10,
+      height: 60
+    })
+
+    const path = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      layout: "single",
+      size: 20,
+      segmentRatios: [0.2, 0.3, 0.5],
+      segmentIndex: 0,
+      direction: "bottom-up"
+    })
+
+    expect(path).toBe("M -10 22 L 10 22 L 10 30 L -10 30 Z")
+  })
+
   it("clamps invalid values safely", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
