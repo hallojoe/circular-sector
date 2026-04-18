@@ -5,6 +5,9 @@ export type RectangularSectorPathMode = "vertical" | "horizontal"
 export interface IRectangularSectorPathOptions {
   mode?: RectangularSectorPathMode
   cornerRadius?: number
+  size?: number
+  stackIndex?: number
+  stackCount?: number
 }
 
 interface IRect {
@@ -18,11 +21,14 @@ interface IRect {
  * Builds an SVG path for a rectangular bar-chart interpretation of the circular sector view model.
  *
  * Interpretation:
- * - `radius` is the total span available for the bar chart lane and the bar value length.
- * - `height` is the bar thickness when positive; otherwise the full span is used.
+ * - `radius` is the maximum span available for the bar chart lane.
+ * - `height` is the intended usable bar span, capped by `radius`.
  * - `ratio` fills the primary value axis only.
- * - `theta` determines the bar's position along the chart lane, not its growth direction.
- * - `gap` separates the filled and remaining bar segments when both are present.
+ * - `size` controls the bar thickness:
+ *   - width for `horizontal`
+ *   - height for `vertical`
+ * - `stackIndex` and `stackCount` place each bar inside a centered stack.
+ * - `gap` separates both stacked bars and filled/remaining segments.
  */
 export function buildRectangularSectorPathByMode(
   sector: ICircularSectorViewModel,
@@ -30,22 +36,27 @@ export function buildRectangularSectorPathByMode(
 ): string {
   const mode = options.mode ?? "vertical"
   const totalSpan = Math.max(0, sector.source.radius)
+  const barSpan = clamp(sector.source.height > 0 ? sector.source.height : totalSpan, 0, totalSpan)
   const ratio = clamp(sector.source.ratio, 0, 1)
   const thickness = clamp(
-    sector.source.height > 0 ? sector.source.height : totalSpan,
+    typeof options.size === "number" ? options.size : sector.source.height > 0 ? sector.source.height : totalSpan,
     0,
     totalSpan
   )
-  const cornerRadius = clamp(options.cornerRadius ?? 0, 0, totalSpan / 2)
-  const laneProgress = getLaneProgress(sector.source.theta)
-  const laneOffset = (totalSpan - thickness) * laneProgress
+  const cornerRadius = clamp(options.cornerRadius ?? 0, 0, Math.min(totalSpan, barSpan) / 2)
+  const stackCount = Math.max(1, Math.floor(options.stackCount ?? 1))
+  const stackIndex = clamp(Math.floor(options.stackIndex ?? 0), 0, stackCount - 1)
+  const stackGap = clamp(sector.source.gap, 0, totalSpan)
+  const stackSpan = (stackCount * thickness) + (Math.max(0, stackCount - 1) * stackGap)
 
   if (mode === "horizontal") {
     return buildHorizontalBars(
       sector,
-      totalSpan,
+      barSpan,
       thickness,
-      laneOffset,
+      stackIndex,
+      stackSpan,
+      stackGap,
       ratio,
       cornerRadius
     )
@@ -53,9 +64,11 @@ export function buildRectangularSectorPathByMode(
 
   return buildVerticalBars(
     sector,
-    totalSpan,
+    barSpan,
     thickness,
-    laneOffset,
+    stackIndex,
+    stackSpan,
+    stackGap,
     ratio,
     cornerRadius
   )
@@ -63,16 +76,19 @@ export function buildRectangularSectorPathByMode(
 
 function buildHorizontalBars(
   sector: ICircularSectorViewModel,
-  totalSpan: number,
+  barSpan: number,
   thickness: number,
-  laneOffset: number,
+  stackIndex: number,
+  stackSpan: number,
+  stackGap: number,
   ratio: number,
   cornerRadius: number
 ): string {
-  const left = sector.source.center.x - (totalSpan / 2) + laneOffset
+  const stackLeft = sector.source.center.x - (stackSpan / 2)
+  const left = stackLeft + (stackIndex * (thickness + stackGap))
   const right = left + thickness
-  const top = sector.source.center.y - (totalSpan / 2)
-  const bottom = sector.source.center.y + (totalSpan / 2)
+  const top = sector.source.center.y - (barSpan / 2)
+  const bottom = sector.source.center.y + (barSpan / 2)
 
   return buildBarPath(
     {
@@ -82,8 +98,7 @@ function buildHorizontalBars(
       bottom
     },
     "vertical",
-    totalSpan,
-    thickness,
+    barSpan,
     ratio,
     sector.source.gap,
     cornerRadius
@@ -92,15 +107,18 @@ function buildHorizontalBars(
 
 function buildVerticalBars(
   sector: ICircularSectorViewModel,
-  totalSpan: number,
+  barSpan: number,
   thickness: number,
-  laneOffset: number,
+  stackIndex: number,
+  stackSpan: number,
+  stackGap: number,
   ratio: number,
   cornerRadius: number
 ): string {
-  const left = sector.source.center.x - (totalSpan / 2)
-  const right = sector.source.center.x + (totalSpan / 2)
-  const top = sector.source.center.y - (totalSpan / 2) + laneOffset
+  const stackTop = sector.source.center.y - (stackSpan / 2)
+  const left = sector.source.center.x - (barSpan / 2)
+  const right = sector.source.center.x + (barSpan / 2)
+  const top = stackTop + (stackIndex * (thickness + stackGap))
   const bottom = top + thickness
 
   return buildBarPath(
@@ -111,8 +129,7 @@ function buildVerticalBars(
       bottom
     },
     "horizontal",
-    totalSpan,
-    thickness,
+    barSpan,
     ratio,
     sector.source.gap,
     cornerRadius
@@ -122,23 +139,17 @@ function buildVerticalBars(
 function buildBarPath(
   laneRect: IRect,
   orientation: "horizontal" | "vertical",
-  totalSpan: number,
-  thickness: number,
+  barSpan: number,
   ratio: number,
   gap: number,
   cornerRadius: number
 ): string {
-  if (totalSpan <= 0 || isCollapsedRect(laneRect)) {
+  if (barSpan <= 0 || isCollapsedRect(laneRect)) {
     return buildRoundedRectPath(laneRect, cornerRadius)
   }
 
-  if (totalSpan <= thickness) {
-    return buildRoundedRectPath(laneRect, cornerRadius)
-  }
-
-  const usableSpan = Math.max(0, totalSpan - thickness)
-  const clampedGap = clamp(gap, 0, usableSpan)
-  const distributableSpan = Math.max(0, usableSpan - clampedGap)
+  const clampedGap = clamp(gap, 0, barSpan)
+  const distributableSpan = Math.max(0, barSpan - clampedGap)
   const filledSpan = clamp(distributableSpan * ratio, 0, distributableSpan)
   const remainingSpan = Math.max(0, distributableSpan - filledSpan)
 
@@ -221,16 +232,6 @@ function buildRectPath(rect: IRect): string {
 
 function isCollapsedRect(rect: IRect): boolean {
   return rect.left === rect.right || rect.top === rect.bottom
-}
-
-function getLaneProgress(theta: number): number {
-  return normalizeAngle(theta + (Math.PI / 2)) / (Math.PI * 2)
-}
-
-function normalizeAngle(theta: number): number {
-  const fullTurn = Math.PI * 2
-
-  return ((theta % fullTurn) + fullTurn) % fullTurn
 }
 
 function clamp(value: number, min: number, max: number): number {

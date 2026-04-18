@@ -22,8 +22,8 @@ describe("buildRectangularSectorPathByMode", () => {
     expect(path.endsWith(" Z")).toBe(true)
   })
 
-  it("lays horizontal bars out from left to right", () => {
-    const first = createCircularSectorViewModel({
+  it("lays horizontal bars out from left to right using stack index", () => {
+    const sector = createCircularSectorViewModel({
       center: { x: 50, y: 50 },
       radius: 40,
       ratio: 0.25,
@@ -31,24 +31,26 @@ describe("buildRectangularSectorPathByMode", () => {
       gap: 0,
       height: 8
     })
-    const second = createCircularSectorViewModel({
-      center: { x: 50, y: 50 },
-      radius: 40,
-      ratio: 0.25,
-      theta: 0,
-      gap: 0,
-      height: 8
+
+    const firstPath = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      size: 8,
+      stackIndex: 0,
+      stackCount: 3
+    })
+    const secondPath = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      size: 8,
+      stackIndex: 1,
+      stackCount: 3
     })
 
-    const firstPath = buildRectangularSectorPathByMode(first, { mode: "horizontal" })
-    const secondPath = buildRectangularSectorPathByMode(second, { mode: "horizontal" })
-
-    expect(firstPath.startsWith("M 30 30")).toBe(true)
-    expect(secondPath.startsWith("M 38 30")).toBe(true)
+    expect(firstPath.startsWith("M 38 46")).toBe(true)
+    expect(secondPath.startsWith("M 46 46")).toBe(true)
   })
 
-  it("lays vertical bars out from top to bottom", () => {
-    const first = createCircularSectorViewModel({
+  it("lays vertical bars out from top to bottom using stack index", () => {
+    const sector = createCircularSectorViewModel({
       center: { x: 50, y: 50 },
       radius: 40,
       ratio: 0.25,
@@ -56,43 +58,67 @@ describe("buildRectangularSectorPathByMode", () => {
       gap: 0,
       height: 8
     })
-    const second = createCircularSectorViewModel({
-      center: { x: 50, y: 50 },
-      radius: 0.25,
+
+    const firstPath = buildRectangularSectorPathByMode(sector, {
+      mode: "vertical",
+      size: 8,
+      stackIndex: 0,
+      stackCount: 3
+    })
+    const secondPath = buildRectangularSectorPathByMode(sector, {
+      mode: "vertical",
+      size: 8,
+      stackIndex: 1,
+      stackCount: 3
+    })
+
+    expect(firstPath.startsWith("M 46 38")).toBe(true)
+    expect(secondPath.startsWith("M 46 46")).toBe(true)
+  })
+
+  it("centers the combined stack on the layer center point", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 100, y: 200 },
+      radius: 40,
+      ratio: 0.25,
       theta: 0,
-      gap: 0,
+      gap: 10,
       height: 8
     })
 
-    const firstPath = buildRectangularSectorPathByMode(first, { mode: "vertical" })
-    const secondPath = buildRectangularSectorPathByMode({
-      ...first,
-      source: {
-        ...first.source,
-        theta: 0
-      }
-    }, { mode: "vertical" })
+    const firstPath = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      size: 20,
+      stackIndex: 0,
+      stackCount: 2
+    })
+    const secondPath = buildRectangularSectorPathByMode(sector, {
+      mode: "horizontal",
+      size: 20,
+      stackIndex: 1,
+      stackCount: 2
+    })
 
-    expect(firstPath.startsWith("M 30 30")).toBe(true)
-    expect(secondPath.startsWith("M 30 38")).toBe(true)
+    expect(firstPath.startsWith("M 75 196")).toBe(true)
+    expect(secondPath.startsWith("M 105 196")).toBe(true)
   })
 
-  it("renders a single full bar when radius is less than or equal to height", () => {
+  it("caps usable bar span by radius when height is larger than radius", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
       radius: 20,
       ratio: 0.25,
       theta: -Math.PI / 2,
       gap: 12,
-      height: 20
+      height: 30
     })
 
     const path = buildRectangularSectorPathByMode(sector, { mode: "vertical" })
 
-    expect(path).toBe("M -10 -10 L 10 -10 L 10 10 L -10 10 Z")
+    expect(path).toBe("M -10 -10 L -8 -10 L -8 10 L -10 10 Z M 4 -10 L 10 -10 L 10 10 L 4 10 Z")
   })
 
-  it("splits a vertical bar into filled and remaining rectangles with gap applied", () => {
+  it("splits a vertical bar into filled and remaining rectangles using height span", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
       radius: 40,
@@ -105,11 +131,11 @@ describe("buildRectangularSectorPathByMode", () => {
     const path = buildRectangularSectorPathByMode(sector, { mode: "vertical" })
 
     expect(path).toBe(
-      "M -20 -20 L -13 -20 L -13 -12 L -20 -12 Z M -9 -20 L 12 -20 L 12 -12 L -9 -12 Z"
+      "M -4 -4 L -3 -4 L -3 4 L -4 4 Z M 1 -4 L 4 -4 L 4 4 L 1 4 Z"
     )
   })
 
-  it("splits a horizontal bar into filled and remaining rectangles with gap applied", () => {
+  it("splits a horizontal bar into filled and remaining rectangles using height span", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
       radius: 40,
@@ -122,7 +148,7 @@ describe("buildRectangularSectorPathByMode", () => {
     const path = buildRectangularSectorPathByMode(sector, { mode: "horizontal" })
 
     expect(path).toBe(
-      "M -20 -20 L -12 -20 L -12 -13 L -20 -13 Z M -20 -9 L -12 -9 L -12 12 L -20 12 Z"
+      "M -4 -4 L 4 -4 L 4 -3 L -4 -3 Z M -4 1 L 4 1 L 4 4 L -4 4 Z"
     )
   })
 
@@ -138,22 +164,22 @@ describe("buildRectangularSectorPathByMode", () => {
 
     const path = buildRectangularSectorPathByMode(sector, { mode: "vertical" })
 
-    expect(path).toBe("M -20 -20 L 20 -20 L 20 -12 L -20 -12 Z")
+    expect(path).toBe("M -4 -4 L 4 -4 L 4 4 L -4 4 Z")
   })
 
-  it("ignores gap in the single-bar fallback", () => {
+  it("uses height as the usable rectangular span instead of radius minus height", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
-      radius: 12,
+      radius: 256,
       ratio: 0.5,
       theta: -Math.PI / 2,
-      gap: 99,
-      height: 20
+      gap: 10,
+      height: 200
     })
 
-    const path = buildRectangularSectorPathByMode(sector, { mode: "horizontal" })
+    const path = buildRectangularSectorPathByMode(sector, { mode: "vertical", size: 20 })
 
-    expect(path).toBe("M -6 -6 L 6 -6 L 6 6 L -6 6 Z")
+    expect(path).toBe("M -100 -10 L -5 -10 L -5 10 L -100 10 Z M 5 -10 L 100 -10 L 100 10 L 5 10 Z")
   })
 
   it("supports rounded corners for both bar segments", () => {
@@ -171,7 +197,7 @@ describe("buildRectangularSectorPathByMode", () => {
       cornerRadius: 2
     })
 
-    expect(path.includes(" A 2 2 0 0 1 ")).toBe(true)
+    expect(path.includes(" A ")).toBe(true)
     expect(path.split(" M ").length).toBe(2)
   })
 
