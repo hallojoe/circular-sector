@@ -22,7 +22,7 @@ describe("buildCircularSectorPathByMode", () => {
     expect(path.endsWith(" Z")).toBe(true)
   })
 
-  it("builds a rounded path for solid sectors", () => {
+  it("builds a rounded path for solid sectors when cornerRadius is provided", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
       radius: 20,
@@ -33,7 +33,7 @@ describe("buildCircularSectorPathByMode", () => {
     })
 
     const path = buildCircularSectorPathByMode(sector, {
-      mode: "rounded",
+      mode: "arc",
       cornerRadius: 3
     })
 
@@ -60,6 +60,25 @@ describe("buildCircularSectorPathByMode", () => {
     expect(path.split(" L ").length).toBeGreaterThan(4)
   })
 
+  it("adds rounded-corner approximation to angular paths when requested", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 10,
+      ratio: 0.25,
+      theta: 0,
+      gap: 0,
+      height: 4
+    })
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "angular",
+      cornerRadius: 2
+    })
+
+    expect(path.includes(" Q ")).toBe(true)
+    expect(path.endsWith(" Z")).toBe(true)
+  })
+
   it("builds a beveled path with extra corner cuts", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
@@ -78,6 +97,25 @@ describe("buildCircularSectorPathByMode", () => {
 
     expect(beveledPath.includes(" A ")).toBe(false)
     expect(beveledPath.split(" L ").length).toBeGreaterThan(angularPath.split(" L ").length)
+  })
+
+  it("can soften beveled corners further with rounded-corner approximation", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 18,
+      ratio: 0.2,
+      theta: 0,
+      gap: 0,
+      height: 6
+    })
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "beveled",
+      bevelSize: 2,
+      cornerRadius: 1
+    })
+
+    expect(path.includes(" Q ")).toBe(true)
   })
 
   it("builds a faceted path without arc commands", () => {
@@ -99,6 +137,26 @@ describe("buildCircularSectorPathByMode", () => {
     expect(path.includes(" Q ")).toBe(false)
     expect(path.includes(" C ")).toBe(false)
     expect(path.split(" L ").length).toBeGreaterThan(8)
+  })
+
+  it("can round faceted corners approximately when cornerRadius is provided", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 14,
+      ratio: 0.3,
+      theta: 0,
+      gap: 0,
+      height: 5
+    })
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "faceted",
+      facetCount: 5,
+      cornerRadius: 1
+    })
+
+    expect(path.includes(" Q ")).toBe(true)
+    expect(path.includes(" A ")).toBe(false)
   })
 
   it("builds a scalloped path with curved outer details for solid sectors", () => {

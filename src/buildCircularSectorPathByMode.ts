@@ -6,7 +6,6 @@ import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
 
 export type CircularSectorPathMode =
   | "arc"
-  | "rounded"
   | "angular"
   | "beveled"
   | "faceted"
@@ -35,17 +34,14 @@ export function buildCircularSectorPathByMode(
   options: ICircularSectorPathOptions = {}
 ): string {
   switch (options.mode ?? "arc") {
-    case "rounded":
-      return buildRoundedSectorPath(sector, options.cornerRadius ?? 0)
-
     case "angular":
-      return buildAngularSectorPath(sector)
+      return buildAngularSectorPath(sector, options.cornerRadius ?? 0)
 
     case "beveled":
-      return buildBeveledSectorPath(sector, options.bevelSize ?? 0)
+      return buildBeveledSectorPath(sector, options.bevelSize ?? 0, options.cornerRadius ?? 0)
 
     case "faceted":
-      return buildFacetedSectorPath(sector, options.facetCount ?? 6)
+      return buildFacetedSectorPath(sector, options.facetCount ?? 6, options.cornerRadius ?? 0)
 
     case "scalloped":
       return buildScallopedSectorPath(sector, options)
@@ -58,7 +54,9 @@ export function buildCircularSectorPathByMode(
 
     case "arc":
     default:
-      return buildArcSectorPath(sector)
+      return options.cornerRadius && options.cornerRadius > 0
+        ? buildRoundedSectorPath(sector, options.cornerRadius)
+        : buildArcSectorPath(sector)
   }
 }
 
@@ -169,42 +167,24 @@ function buildRoundedSectorPath(sector: ICircularSectorViewModel, cornerRadius: 
   return pathData.join(" ")
 }
 
-function buildAngularSectorPath(sector: ICircularSectorViewModel): string {
-  return buildLinearClosedPath(createAngularPolygon(sector))
+function buildAngularSectorPath(sector: ICircularSectorViewModel, cornerRadius: number): string {
+  return buildRoundedLinearClosedPath(createAngularPolygon(sector), cornerRadius)
 }
 
-function buildBeveledSectorPath(sector: ICircularSectorViewModel, bevelSize: number): string {
-  if (bevelSize < 1) return buildAngularSectorPath(sector)
+function buildBeveledSectorPath(sector: ICircularSectorViewModel, bevelSize: number, cornerRadius: number): string {
+  if (bevelSize < 1) return buildAngularSectorPath(sector, cornerRadius)
 
   const beveledPolygon = createBeveledPolygon(createAngularPolygon(sector), bevelSize)
-  const pathData = [
-    "M",
-    beveledPolygon[0].exit.x,
-    beveledPolygon[0].exit.y
-  ]
-
+  const polygonPoints: IPoint[] = [beveledPolygon[0].exit]
   for (let index = 1; index < beveledPolygon.length; index++) {
-    pathData.push(
-      "L",
-      beveledPolygon[index].entry.x,
-      beveledPolygon[index].entry.y,
-      "L",
-      beveledPolygon[index].exit.x,
-      beveledPolygon[index].exit.y
-    )
+    polygonPoints.push(beveledPolygon[index].entry, beveledPolygon[index].exit)
   }
+  polygonPoints.push(beveledPolygon[0].entry)
 
-  pathData.push(
-    "L",
-    beveledPolygon[0].entry.x,
-    beveledPolygon[0].entry.y,
-    "Z"
-  )
-
-  return pathData.join(" ")
+  return buildRoundedLinearClosedPath(polygonPoints, cornerRadius)
 }
 
-function buildFacetedSectorPath(sector: ICircularSectorViewModel, facetCount: number): string {
+function buildFacetedSectorPath(sector: ICircularSectorViewModel, facetCount: number, cornerRadius: number): string {
   const safeFacetCount = Math.max(2, Math.floor(facetCount))
   const outerPoints = createArcFacetPoints(
     sector.center,
@@ -215,10 +195,10 @@ function buildFacetedSectorPath(sector: ICircularSectorViewModel, facetCount: nu
   )
 
   if (isPieSector(sector)) {
-    return buildLinearClosedPath([
+    return buildRoundedLinearClosedPath([
       ...outerPoints,
       sector.center
-    ])
+    ], cornerRadius)
   }
 
   const innerPoints = createArcFacetPoints(
@@ -229,10 +209,10 @@ function buildFacetedSectorPath(sector: ICircularSectorViewModel, facetCount: nu
     safeFacetCount
   )
 
-  return buildLinearClosedPath([
+  return buildRoundedLinearClosedPath([
     ...outerPoints,
     ...innerPoints
-  ])
+  ], cornerRadius)
 }
 
 function buildScallopedSectorPath(
@@ -291,7 +271,7 @@ function buildSteppedSectorPath(
   const inset = clampStepInset(sector, options.stepInset, stepCount)
 
   if (inset < 1 && isPieSector(sector)) {
-    return buildAngularSectorPath(sector)
+    return buildAngularSectorPath(sector, 0)
   }
 
   const outerPoints = createSteppedArcPoints(
@@ -345,7 +325,7 @@ function buildBurstSectorPath(
   )
 
   if (depth < 1) {
-    return buildFacetedSectorPath(sector, burstCount)
+    return buildFacetedSectorPath(sector, burstCount, 0)
   }
 
   const boundaryAngles = createSampleAngles(sector.angles.start, sector.angles.end, burstCount)
@@ -542,6 +522,53 @@ function buildLinearClosedPath(points: IPoint[]): string {
   return pathData.join(" ")
 }
 
+function buildRoundedLinearClosedPath(points: IPoint[], requestedRadius: number): string {
+  if (points.length < 3 || requestedRadius < 1) {
+    return buildLinearClosedPath(points)
+  }
+
+  const roundedPoints = points.map((point, index) => {
+    const previousPoint = points[(index - 1 + points.length) % points.length]
+    const nextPoint = points[(index + 1) % points.length]
+    const maxRadius = Math.min(
+      requestedRadius,
+      calculateDistance(previousPoint, point) / 2,
+      calculateDistance(point, nextPoint) / 2
+    )
+
+    return {
+      entry: interpolateTowards(point, previousPoint, maxRadius),
+      corner: point,
+      exit: interpolateTowards(point, nextPoint, maxRadius)
+    }
+  })
+
+  const pathData: Array<string | number> = [
+    "M",
+    roundedPoints[0].entry.x,
+    roundedPoints[0].entry.y
+  ]
+
+  for (const point of roundedPoints) {
+    pathData.push(
+      "Q",
+      point.corner.x,
+      point.corner.y,
+      point.exit.x,
+      point.exit.y
+    )
+  }
+
+  pathData.push(
+    "L",
+    roundedPoints[0].entry.x,
+    roundedPoints[0].entry.y,
+    "Z"
+  )
+
+  return pathData.join(" ")
+}
+
 function sanitizeDivisionCount(count: number): number {
   return Math.max(2, Math.floor(count))
 }
@@ -561,4 +588,20 @@ function getInnerRadius(sector: ICircularSectorViewModel): number {
 function getLargeArcFlag(ratio: number, invert: boolean = false): string {
   const largeArcFlag = ratio * 360 > 180 ? ["0", "1", "1"] : ["0", "0", "1"]
   return invert ? [...largeArcFlag].reverse().join(" ") : largeArcFlag.join(" ")
+}
+
+function interpolateTowards(origin: IPoint, target: IPoint, distance: number): IPoint {
+  const totalDistance = calculateDistance(origin, target)
+
+  if (totalDistance <= 0 || distance <= 0) return origin
+
+  const ratio = Math.min(1, distance / totalDistance)
+  return {
+    x: origin.x + ((target.x - origin.x) * ratio),
+    y: origin.y + ((target.y - origin.y) * ratio)
+  }
+}
+
+function calculateDistance(from: IPoint, to: IPoint): number {
+  return Math.hypot(to.x - from.x, to.y - from.y)
 }
