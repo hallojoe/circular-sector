@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   buildCircularSectorPathByMode,
+  calculatePolarToCartesian,
   createCircularSectorViewModel
 } from "../src"
 
@@ -119,6 +120,43 @@ describe("buildCircularSectorPathByMode", () => {
     expect(scallopedPath.includes(" Q ")).toBe(true)
     expect(scallopedPath.endsWith(" Z")).toBe(true)
     expect(scallopedPath).not.toBe(arcPath)
+  })
+
+  it("starts scalloped outer details from the current outer-end anchor direction", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 100,
+      ratio: 0.25,
+      theta: -Math.PI / 2,
+      gap: 0,
+      height: 100
+    })
+
+    const scallopCount = 4
+    const segmentAngle = (sector.angles.end - sector.angles.start) / scallopCount
+    const firstMidAngle = sector.angles.start + (segmentAngle / 2)
+    const firstEndAngle = sector.angles.start + segmentAngle
+    const depth = 8
+    const expectedControl = calculatePolarToCartesian(
+      sector.center,
+      sector.source.radius + depth,
+      firstMidAngle
+    )
+    const expectedEnd = calculatePolarToCartesian(
+      sector.center,
+      sector.source.radius,
+      firstEndAngle
+    )
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "scalloped",
+      scallopCount,
+      scallopDepth: depth
+    })
+
+    expect(path.startsWith(
+      `M ${sector.anchors.outer.end.x} ${sector.anchors.outer.end.y} Q ${expectedControl.x} ${expectedControl.y} ${expectedEnd.x} ${expectedEnd.y}`
+    )).toBe(true)
   })
 
   it("builds a scalloped annular path while keeping the inner arc", () => {
@@ -247,6 +285,43 @@ describe("buildCircularSectorPathByMode", () => {
     expect(burstPath).not.toBe(facetedPath)
     expect(burstPath.split(" L ").length).toBeGreaterThanOrEqual(10)
     expect(burstPath.endsWith(" Z")).toBe(true)
+  })
+
+  it("starts burst outer details from the current outer-end anchor direction", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 0, y: 0 },
+      radius: 100,
+      ratio: 0.25,
+      theta: -Math.PI / 2,
+      gap: 0,
+      height: 100
+    })
+
+    const burstCount = 4
+    const segmentAngle = (sector.angles.end - sector.angles.start) / burstCount
+    const firstMidAngle = sector.angles.start + (segmentAngle / 2)
+    const firstEndAngle = sector.angles.start + segmentAngle
+    const depth = 8
+    const expectedTip = calculatePolarToCartesian(
+      sector.center,
+      sector.source.radius + depth,
+      firstMidAngle
+    )
+    const expectedEnd = calculatePolarToCartesian(
+      sector.center,
+      sector.source.radius,
+      firstEndAngle
+    )
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "burst",
+      burstCount,
+      burstDepth: depth
+    })
+
+    expect(path.startsWith(
+      `M ${sector.anchors.outer.end.x} ${sector.anchors.outer.end.y} L ${expectedTip.x} ${expectedTip.y} L ${expectedEnd.x} ${expectedEnd.y}`
+    )).toBe(true)
   })
 
   it("falls back to a faceted path when burst depth clamps away", () => {
