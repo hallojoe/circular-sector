@@ -249,7 +249,7 @@ function buildScallopedSectorPath(
 
   if (depth < 1) return buildArcSectorPath(sector)
 
-  const boundaryAngles = createSampleAngles(sector.angles.end, sector.angles.start, scallopCount)
+  const boundaryAngles = createSampleAngles(sector.angles.start, sector.angles.end, scallopCount)
   const pathData: Array<string | number> = [
     "M",
     sector.anchors.outer.end.x,
@@ -348,7 +348,7 @@ function buildBurstSectorPath(
     return buildFacetedSectorPath(sector, burstCount)
   }
 
-  const boundaryAngles = createSampleAngles(sector.angles.end, sector.angles.start, burstCount)
+  const boundaryAngles = createSampleAngles(sector.angles.start, sector.angles.end, burstCount)
   const pathData: Array<string | number> = [
     "M",
     sector.anchors.outer.end.x,
