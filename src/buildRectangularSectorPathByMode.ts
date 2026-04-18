@@ -4,11 +4,8 @@ export type RectangularSectorPathMode = "vertical" | "horizontal"
 
 export interface IRectangularSectorPathOptions {
   mode?: RectangularSectorPathMode
+  cornerRadius?: number
 }
-
-type CardinalSide = "right" | "bottom" | "left" | "top"
-type VerticalAnchor = "top" | "bottom"
-type HorizontalAnchor = "left" | "right"
 
 interface IRect {
   left: number
@@ -18,278 +15,216 @@ interface IRect {
 }
 
 /**
- * Builds an SVG path for a rectangular slice or band from the circular sector view model.
+ * Builds an SVG path for a rectangular bar-chart interpretation of the circular sector view model.
  *
- * The rectangular interpretation uses the raw source values rather than circular anchor points:
- * - `radius` is the full outer span
- * - `height` is the reduction from the outer span to the inner span
- * - `ratio` fills the primary axis only
- * - `theta` selects the anchor side
+ * Interpretation:
+ * - `radius` is the total span available for the bar chart lane and the bar value length.
+ * - `height` is the bar thickness when positive; otherwise the full span is used.
+ * - `ratio` fills the primary value axis only.
+ * - `theta` determines the bar's position along the chart lane, not its growth direction.
+ * - `gap` separates the filled and remaining bar segments when both are present.
  */
 export function buildRectangularSectorPathByMode(
   sector: ICircularSectorViewModel,
   options: IRectangularSectorPathOptions = {}
 ): string {
   const mode = options.mode ?? "vertical"
+  const totalSpan = Math.max(0, sector.source.radius)
   const ratio = clamp(sector.source.ratio, 0, 1)
-  const outerSpan = Math.max(0, sector.source.radius)
   const thickness = clamp(
-    sector.source.height > 0 ? sector.source.height : sector.source.radius,
+    sector.source.height > 0 ? sector.source.height : totalSpan,
     0,
-    outerSpan
+    totalSpan
   )
-  const innerSpan = Math.max(0, outerSpan - thickness)
-  const filledSpan = clamp(outerSpan * ratio, 0, outerSpan)
-  const outerRect = createCenteredRect(sector.center.x, sector.center.y, outerSpan, outerSpan)
+  const cornerRadius = clamp(options.cornerRadius ?? 0, 0, totalSpan / 2)
+  const laneProgress = getLaneProgress(sector.source.theta)
+  const laneOffset = (totalSpan - thickness) * laneProgress
 
   if (mode === "horizontal") {
-    const anchor = resolveHorizontalAnchor(getNearestCardinalSide(sector.source.theta))
-    const sliceRect = createHorizontalSliceRect(outerRect, filledSpan, anchor)
-
-    return buildRectangularSlicePath(sliceRect, outerRect, innerSpan, anchor)
+    return buildHorizontalBars(
+      sector,
+      totalSpan,
+      thickness,
+      laneOffset,
+      ratio,
+      cornerRadius
+    )
   }
 
-  const anchor = resolveVerticalAnchor(getNearestCardinalSide(sector.source.theta))
-  const sliceRect = createVerticalSliceRect(outerRect, filledSpan, anchor)
-
-  return buildRectangularSlicePath(sliceRect, outerRect, innerSpan, anchor)
+  return buildVerticalBars(
+    sector,
+    totalSpan,
+    thickness,
+    laneOffset,
+    ratio,
+    cornerRadius
+  )
 }
 
-function buildRectangularSlicePath(
-  sliceRect: IRect,
-  outerRect: IRect,
-  innerSpan: number,
-  anchor: VerticalAnchor | HorizontalAnchor
+function buildHorizontalBars(
+  sector: ICircularSectorViewModel,
+  totalSpan: number,
+  thickness: number,
+  laneOffset: number,
+  ratio: number,
+  cornerRadius: number
 ): string {
-  if (isCollapsedRect(sliceRect)) {
-    return buildRectPath(sliceRect)
-  }
+  const left = sector.source.center.x - (totalSpan / 2) + laneOffset
+  const right = left + thickness
+  const top = sector.source.center.y - (totalSpan / 2)
+  const bottom = sector.source.center.y + (totalSpan / 2)
 
-  if (innerSpan <= 0) {
-    return buildRectPath(sliceRect)
-  }
-
-  const innerRect = createCenteredRect(
-    (outerRect.left + outerRect.right) / 2,
-    (outerRect.top + outerRect.bottom) / 2,
-    innerSpan,
-    innerSpan
+  return buildBarPath(
+    {
+      left,
+      right,
+      top,
+      bottom
+    },
+    "vertical",
+    totalSpan,
+    thickness,
+    ratio,
+    sector.source.gap,
+    cornerRadius
   )
-  const overlapRect = intersectRects(sliceRect, innerRect)
-
-  if (!overlapRect) {
-    return buildRectPath(sliceRect)
-  }
-
-  if (containsRect(sliceRect, innerRect)) {
-    return [
-      buildRectPath(sliceRect, false),
-      buildRectPath(innerRect, true)
-    ].join(" ")
-  }
-
-  switch (anchor) {
-    case "top":
-      return buildPolygonPath([
-        point(sliceRect.left, sliceRect.top),
-        point(sliceRect.right, sliceRect.top),
-        point(sliceRect.right, sliceRect.bottom),
-        point(overlapRect.right, sliceRect.bottom),
-        point(overlapRect.right, overlapRect.top),
-        point(overlapRect.left, overlapRect.top),
-        point(overlapRect.left, sliceRect.bottom),
-        point(sliceRect.left, sliceRect.bottom)
-      ])
-
-    case "bottom":
-      return buildPolygonPath([
-        point(sliceRect.left, sliceRect.bottom),
-        point(sliceRect.right, sliceRect.bottom),
-        point(sliceRect.right, sliceRect.top),
-        point(overlapRect.right, sliceRect.top),
-        point(overlapRect.right, overlapRect.bottom),
-        point(overlapRect.left, overlapRect.bottom),
-        point(overlapRect.left, sliceRect.top),
-        point(sliceRect.left, sliceRect.top)
-      ])
-
-    case "left":
-      return buildPolygonPath([
-        point(sliceRect.left, sliceRect.top),
-        point(sliceRect.right, sliceRect.top),
-        point(sliceRect.right, overlapRect.top),
-        point(overlapRect.left, overlapRect.top),
-        point(overlapRect.left, overlapRect.bottom),
-        point(sliceRect.right, overlapRect.bottom),
-        point(sliceRect.right, sliceRect.bottom),
-        point(sliceRect.left, sliceRect.bottom)
-      ])
-
-    case "right":
-      return buildPolygonPath([
-        point(sliceRect.right, sliceRect.top),
-        point(sliceRect.left, sliceRect.top),
-        point(sliceRect.left, overlapRect.top),
-        point(overlapRect.right, overlapRect.top),
-        point(overlapRect.right, overlapRect.bottom),
-        point(sliceRect.left, overlapRect.bottom),
-        point(sliceRect.left, sliceRect.bottom),
-        point(sliceRect.right, sliceRect.bottom)
-      ])
-  }
 }
 
-function createVerticalSliceRect(
-  outerRect: IRect,
-  filledSpan: number,
-  anchor: VerticalAnchor
-): IRect {
-  if (anchor === "bottom") {
-    return {
-      left: outerRect.left,
-      right: outerRect.right,
-      top: outerRect.bottom - filledSpan,
-      bottom: outerRect.bottom
-    }
-  }
+function buildVerticalBars(
+  sector: ICircularSectorViewModel,
+  totalSpan: number,
+  thickness: number,
+  laneOffset: number,
+  ratio: number,
+  cornerRadius: number
+): string {
+  const left = sector.source.center.x - (totalSpan / 2)
+  const right = sector.source.center.x + (totalSpan / 2)
+  const top = sector.source.center.y - (totalSpan / 2) + laneOffset
+  const bottom = top + thickness
 
-  return {
-    left: outerRect.left,
-    right: outerRect.right,
-    top: outerRect.top,
-    bottom: outerRect.top + filledSpan
-  }
-}
-
-function createHorizontalSliceRect(
-  outerRect: IRect,
-  filledSpan: number,
-  anchor: HorizontalAnchor
-): IRect {
-  if (anchor === "right") {
-    return {
-      left: outerRect.right - filledSpan,
-      right: outerRect.right,
-      top: outerRect.top,
-      bottom: outerRect.bottom
-    }
-  }
-
-  return {
-    left: outerRect.left,
-    right: outerRect.left + filledSpan,
-    top: outerRect.top,
-    bottom: outerRect.bottom
-  }
-}
-
-function createCenteredRect(centerX: number, centerY: number, width: number, height: number): IRect {
-  const halfWidth = width / 2
-  const halfHeight = height / 2
-
-  return {
-    left: centerX - halfWidth,
-    top: centerY - halfHeight,
-    right: centerX + halfWidth,
-    bottom: centerY + halfHeight
-  }
-}
-
-function intersectRects(a: IRect, b: IRect): IRect | null {
-  const intersection: IRect = {
-    left: Math.max(a.left, b.left),
-    top: Math.max(a.top, b.top),
-    right: Math.min(a.right, b.right),
-    bottom: Math.min(a.bottom, b.bottom)
-  }
-
-  if (intersection.left >= intersection.right || intersection.top >= intersection.bottom) {
-    return null
-  }
-
-  return intersection
-}
-
-function containsRect(outer: IRect, inner: IRect): boolean {
-  return (
-    outer.left <= inner.left &&
-    outer.top <= inner.top &&
-    outer.right >= inner.right &&
-    outer.bottom >= inner.bottom
+  return buildBarPath(
+    {
+      left,
+      right,
+      top,
+      bottom
+    },
+    "horizontal",
+    totalSpan,
+    thickness,
+    ratio,
+    sector.source.gap,
+    cornerRadius
   )
+}
+
+function buildBarPath(
+  laneRect: IRect,
+  orientation: "horizontal" | "vertical",
+  totalSpan: number,
+  thickness: number,
+  ratio: number,
+  gap: number,
+  cornerRadius: number
+): string {
+  if (totalSpan <= 0 || isCollapsedRect(laneRect)) {
+    return buildRoundedRectPath(laneRect, cornerRadius)
+  }
+
+  if (totalSpan <= thickness) {
+    return buildRoundedRectPath(laneRect, cornerRadius)
+  }
+
+  const usableSpan = Math.max(0, totalSpan - thickness)
+  const clampedGap = clamp(gap, 0, usableSpan)
+  const distributableSpan = Math.max(0, usableSpan - clampedGap)
+  const filledSpan = clamp(distributableSpan * ratio, 0, distributableSpan)
+  const remainingSpan = Math.max(0, distributableSpan - filledSpan)
+
+  if (remainingSpan <= 0.0001) {
+    return buildRoundedRectPath(laneRect, cornerRadius)
+  }
+
+  const filledRect = orientation === "horizontal"
+    ? {
+      left: laneRect.left,
+      top: laneRect.top,
+      right: laneRect.left + filledSpan,
+      bottom: laneRect.bottom
+    }
+    : {
+      left: laneRect.left,
+      top: laneRect.top,
+      right: laneRect.right,
+      bottom: laneRect.top + filledSpan
+    }
+
+  const remainingRect = orientation === "horizontal"
+    ? {
+      left: filledRect.right + clampedGap,
+      top: laneRect.top,
+      right: filledRect.right + clampedGap + remainingSpan,
+      bottom: laneRect.bottom
+    }
+    : {
+      left: laneRect.left,
+      top: filledRect.bottom + clampedGap,
+      right: laneRect.right,
+      bottom: filledRect.bottom + clampedGap + remainingSpan
+    }
+
+  return [
+    buildRoundedRectPath(filledRect, cornerRadius),
+    buildRoundedRectPath(remainingRect, cornerRadius)
+  ].join(" ")
+}
+
+function buildRoundedRectPath(rect: IRect, requestedRadius: number): string {
+  if (isCollapsedRect(rect)) {
+    return buildRectPath(rect)
+  }
+
+  const width = Math.max(0, rect.right - rect.left)
+  const height = Math.max(0, rect.bottom - rect.top)
+  const radius = clamp(requestedRadius, 0, Math.min(width, height) / 2)
+
+  if (radius <= 0) {
+    return buildRectPath(rect)
+  }
+
+  const pathData: Array<string | number> = [
+    "M", rect.left + radius, rect.top,
+    "L", rect.right - radius, rect.top,
+    "A", radius, radius, 0, 0, 1, rect.right, rect.top + radius,
+    "L", rect.right, rect.bottom - radius,
+    "A", radius, radius, 0, 0, 1, rect.right - radius, rect.bottom,
+    "L", rect.left + radius, rect.bottom,
+    "A", radius, radius, 0, 0, 1, rect.left, rect.bottom - radius,
+    "L", rect.left, rect.top + radius,
+    "A", radius, radius, 0, 0, 1, rect.left + radius, rect.top,
+    "Z"
+  ]
+
+  return pathData.join(" ")
+}
+
+function buildRectPath(rect: IRect): string {
+  return [
+    "M", rect.left, rect.top,
+    "L", rect.right, rect.top,
+    "L", rect.right, rect.bottom,
+    "L", rect.left, rect.bottom,
+    "Z"
+  ].join(" ")
 }
 
 function isCollapsedRect(rect: IRect): boolean {
   return rect.left === rect.right || rect.top === rect.bottom
 }
 
-function buildRectPath(rect: IRect, reverse: boolean = false): string {
-  const points = !reverse
-    ? [
-      point(rect.left, rect.top),
-      point(rect.right, rect.top),
-      point(rect.right, rect.bottom),
-      point(rect.left, rect.bottom)
-    ]
-    : [
-      point(rect.left, rect.top),
-      point(rect.left, rect.bottom),
-      point(rect.right, rect.bottom),
-      point(rect.right, rect.top)
-    ]
-
-  return buildPolygonPath(points)
-}
-
-function buildPolygonPath(points: Array<{ x: number; y: number }>): string {
-  const pathData: Array<string | number> = ["M", points[0].x, points[0].y]
-
-  for (let index = 1; index < points.length; index++) {
-    pathData.push("L", points[index].x, points[index].y)
-  }
-
-  pathData.push("Z")
-
-  return pathData.join(" ")
-}
-
-function getNearestCardinalSide(theta: number): CardinalSide {
-  const normalizedTheta = normalizeAngle(theta)
-  const quadrantIndex = Math.round(normalizedTheta / (Math.PI / 2)) % 4
-
-  switch (quadrantIndex) {
-    case 1:
-      return "bottom"
-    case 2:
-      return "left"
-    case 3:
-      return "top"
-    case 0:
-    default:
-      return "right"
-  }
-}
-
-function resolveVerticalAnchor(side: CardinalSide): VerticalAnchor {
-  const mapping: Record<CardinalSide, VerticalAnchor> = {
-    right: "top",
-    bottom: "bottom",
-    left: "bottom",
-    top: "top"
-  }
-
-  return mapping[side]
-}
-
-function resolveHorizontalAnchor(side: CardinalSide): HorizontalAnchor {
-  const mapping: Record<CardinalSide, HorizontalAnchor> = {
-    right: "right",
-    bottom: "right",
-    left: "left",
-    top: "left"
-  }
-
-  return mapping[side]
+function getLaneProgress(theta: number): number {
+  return normalizeAngle(theta + (Math.PI / 2)) / (Math.PI * 2)
 }
 
 function normalizeAngle(theta: number): number {
@@ -301,8 +236,4 @@ function normalizeAngle(theta: number): number {
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
   return Math.min(Math.max(value, min), max)
-}
-
-function point(x: number, y: number) {
-  return { x, y }
 }
