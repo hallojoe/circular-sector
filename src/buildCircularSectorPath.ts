@@ -1,5 +1,9 @@
 import { ICircularSectorViewModel } from "./Interfaces"
 import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
+import {
+  getArcSpanRadians,
+  getLargeArcFlagFromSpan
+} from "./circularSectorGeometry"
 
 /**
  * Builds an SVG path for a circular or annular sector.
@@ -8,7 +12,7 @@ import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
 export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRadius: number = 0): string {
   if (pathRadius > 0) return buildCircularSectorPathWithRadius(sector, pathRadius)
 
-  const largeArcFlag = getLargeArcFlag(sector.ratio)
+  const largeArcFlag = getLargeArcFlagFromSpan(getArcSpanRadians(sector))
 
   const pathData = [
     "M",
@@ -43,7 +47,7 @@ export function buildCircularSectorPath(sector: ICircularSectorViewModel, pathRa
       "A",
       sector.source.radius - sector.source.height!,
       sector.source.radius - sector.source.height!,
-      largeArcFlag.split(" ").reverse().join(" "),
+      getLargeArcFlagFromSpan(getArcSpanRadians(sector), true),
       sector.anchors.inner.end.x,
       sector.anchors.inner.end.y,
       "Z"
@@ -69,7 +73,7 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
     gap: sector.source.gap + (pathRadius * 2)
   })
 
-  const largeArcFlag = getLargeArcFlag(sector.ratio)
+  const largeArcFlag = getLargeArcFlagFromSpan(getArcSpanRadians(sectorNarrow))
 
   const pathData = [
     "M",
@@ -123,7 +127,7 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
       "A",
       sectorNarrow.source.radius - sector.source.height,
       sectorNarrow.source.radius - sector.source.height,
-      largeArcFlag.split(" ").reverse().join(" "),
+      getLargeArcFlagFromSpan(getArcSpanRadians(sectorNarrow), true),
       sectorNarrow.anchors.inner.end.x,
       sectorNarrow.anchors.inner.end.y,
       "Q",
@@ -144,7 +148,3 @@ function buildCircularSectorPathWithRadius(sector: ICircularSectorViewModel, pat
   return pathData.join(" ")
 }
 
-function getLargeArcFlag(ratio: number, invert: boolean = false) {
-  const largeArcFlag = ratio * 360 > 180 ? "0 1 1" : "0 0 1"
-  return !invert ? largeArcFlag : largeArcFlag.split(" ").reverse().join(" ")
-}

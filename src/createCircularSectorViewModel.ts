@@ -8,7 +8,10 @@ import { calculateIsoscelesTriangleHeight } from "./calculateIsoscelesTriangleHe
 import { calculateMidpoint } from "./calculateMidpoint"
 import { calculateSectorAngles } from "./calculateSectorAngles"
 import { calculateSectorCentroid } from "./calculateSectorCentroid"
-import { calculateSectorLengthInRadians } from "./calculateSectorLengthInRadians"
+import {
+  getEffectiveSectorRatio,
+  isEffectivelyFullCircle
+} from "./circularSectorGeometry"
 
 /**
  * Creates the full view model for either a circular sector or an annular circular sector.
@@ -80,12 +83,13 @@ function createRadiusVariant(input: ICircularSectorSettings, radius: number): IC
  * Creates the base sector geometry before any gap adjustments are applied.
  */
 function createSectorBase(input: ICircularSectorSettings): ICircularSectorViewModel {
-  const angles = calculateSectorAngles(input.ratio, input.theta)
+  const ratio = getEffectiveSectorRatio(input.ratio)
+  const angles = calculateSectorAngles(ratio, input.theta)
   const centerPointTriplet = createCenterPointTriplet(input.center)
 
   return {
     source: input,
-    ratio: input.ratio,
+    ratio,
     radius: input.radius,
     center: input.center,
     angles,
@@ -105,6 +109,10 @@ function createGappedSector(input: ICircularSectorSettings): ICircularSectorView
   const sector = createSectorBase(input)
 
   if (!sector.source.gap || sector.source.gap <= 0) return sector
+
+  if (isEffectivelyFullCircle(sector.ratio)) {
+    return createFullCircleGappedSector(sector)
+  }
 
   const marginInRadians = calculateGapMarginInRadians(sector.source.gap, sector.radius)
   const trimmedOuterPoints = createArcAnchorPoints(
@@ -136,6 +144,37 @@ function createGappedSector(input: ICircularSectorSettings): ICircularSectorView
       ),
       inner: createCenterPointTriplet(scaledSectorGeometry.center),
       centroid: calculateSectorCentroid(scaledSectorGeometry.center, scaledAngles, scaledSectorGeometry.radius)
+    }
+  }
+}
+
+function createFullCircleGappedSector(sector: ICircularSectorViewModel): ICircularSectorViewModel {
+  const marginInRadians = calculateGapMarginInRadians(sector.source.gap, sector.radius)
+  const scaledAngles = {
+    start: sector.angles.start + (marginInRadians / 2),
+    mid: sector.angles.mid,
+    end: sector.angles.end - (marginInRadians / 2),
+  }
+
+  return {
+    ...sector,
+    angles: scaledAngles,
+    anchors: {
+      ...sector.anchors,
+      outer: createArcAnchorPoints(
+        sector.center,
+        sector.radius,
+        scaledAngles.start,
+        scaledAngles.end
+      ),
+      middle: createArcAnchorPoints(
+        sector.center,
+        sector.radius / 2,
+        scaledAngles.start,
+        scaledAngles.end
+      ),
+      inner: createCenterPointTriplet(sector.center),
+      centroid: calculateSectorCentroid(sector.center, scaledAngles, sector.radius)
     }
   }
 }
@@ -192,7 +231,7 @@ function calculateScaledSectorGeometry(sector: ICircularSectorViewModel, trimmed
     baseLineScaledMidPoint,
     sector.angles.mid,
     heightScaled,
-    calculateSectorLengthInRadians(sector.ratio) > Math.PI)
+    sector.angles.end - sector.angles.start > Math.PI)
   const radius = calculateDistanceBetweenPoints(
     center,
     sector.anchors.outer.mid)

@@ -3,6 +3,10 @@ import { calculatePolarToCartesian } from "./convertPolarToCartesian"
 import { createArcFacetPoints } from "./createArcFacetPoints"
 import { createBeveledPolygon } from "./createBeveledPolygon"
 import { createCircularSectorViewModel } from "./createCircularSectorViewModel"
+import {
+  getArcSpanRadians,
+  getLargeArcFlagFromSpan
+} from "./circularSectorGeometry"
 
 export type CircularSectorPathMode =
   | "arc"
@@ -61,7 +65,7 @@ export function buildCircularSectorPathByMode(
 }
 
 function buildArcSectorPath(sector: ICircularSectorViewModel): string {
-  const largeArcFlag = getLargeArcFlag(sector.ratio)
+  const largeArcFlag = getLargeArcFlagFromSpan(getArcSpanRadians(sector))
   const innerRadius = getInnerRadius(sector)
   const pathData = [
     "M",
@@ -99,7 +103,7 @@ function buildRoundedSectorPath(sector: ICircularSectorViewModel, cornerRadius: 
     gap: sector.source.gap + (cornerRadius * 2)
   })
 
-  const largeArcFlag = getLargeArcFlag(sector.ratio)
+  const largeArcFlag = getLargeArcFlagFromSpan(getArcSpanRadians(sectorNarrow))
   const innerRadius = Math.max(0, sectorNarrow.source.radius - sector.source.height)
   const pathData = [
     "M",
@@ -146,7 +150,7 @@ function buildRoundedSectorPath(sector: ICircularSectorViewModel, cornerRadius: 
       "A",
       innerRadius,
       innerRadius,
-      getLargeArcFlag(sector.ratio, true),
+      getLargeArcFlagFromSpan(getArcSpanRadians(sectorNarrow), true),
       sectorNarrow.anchors.inner.end.x,
       sectorNarrow.anchors.inner.end.y,
       "Q",
@@ -503,7 +507,7 @@ function appendInnerClosure(
     "A",
     innerRadius,
     innerRadius,
-    getLargeArcFlag(sector.ratio, true),
+    getLargeArcFlagFromSpan(getArcSpanRadians(sector), true),
     sector.anchors.inner.end.x,
     sector.anchors.inner.end.y,
     "Z"
@@ -574,7 +578,7 @@ function sanitizeDivisionCount(count: number): number {
 }
 
 function getArcSpan(sector: ICircularSectorViewModel): number {
-  return Math.abs(sector.angles.end - sector.angles.start)
+  return getArcSpanRadians(sector)
 }
 
 function isPieSector(sector: ICircularSectorViewModel): boolean {
@@ -583,11 +587,6 @@ function isPieSector(sector: ICircularSectorViewModel): boolean {
 
 function getInnerRadius(sector: ICircularSectorViewModel): number {
   return Math.max(0, sector.source.radius - sector.source.height)
-}
-
-function getLargeArcFlag(ratio: number, invert: boolean = false): string {
-  const largeArcFlag = ratio * 360 > 180 ? ["0", "1", "1"] : ["0", "0", "1"]
-  return invert ? [...largeArcFlag].reverse().join(" ") : largeArcFlag.join(" ")
 }
 
 function interpolateTowards(origin: IPoint, target: IPoint, distance: number): IPoint {

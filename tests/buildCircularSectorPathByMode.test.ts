@@ -42,6 +42,46 @@ describe("buildCircularSectorPathByMode", () => {
     expect(path.endsWith(" Z")).toBe(true)
   })
 
+  it("uses the narrowed rendered span for rounded annular arc flags", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 160, y: 160 },
+      radius: 100,
+      ratio: 0.51,
+      theta: -Math.PI / 2,
+      gap: 8,
+      height: 50
+    })
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "arc",
+      cornerRadius: 8
+    })
+
+    expect(path).toContain("A 100 100 0 0 1")
+    expect(path).toContain("A 50 50 1 0 0")
+  })
+
+  it("keeps large arc flags when rounded rendered spans remain over half a circle", () => {
+    for (const ratio of [0.55, 0.75]) {
+      const sector = createCircularSectorViewModel({
+        center: { x: 160, y: 160 },
+        radius: 100,
+        ratio,
+        theta: -Math.PI / 2,
+        gap: 8,
+        height: 50
+      })
+
+      const path = buildCircularSectorPathByMode(sector, {
+        mode: "arc",
+        cornerRadius: 8
+      })
+
+      expect(path).toContain("A 100 100 0 1 1")
+      expect(path).toContain("A 50 50 1 1 0")
+    }
+  })
+
   it("builds an angular path with only line commands", () => {
     const sector = createCircularSectorViewModel({
       center: { x: 0, y: 0 },
@@ -428,5 +468,25 @@ describe("buildCircularSectorPathByMode", () => {
     expect(burstPath.startsWith(`M ${sector.anchors.outer.end.x} ${sector.anchors.outer.end.y}`)).toBe(true)
     expect(scallopedPath).toContain(`L ${sector.anchors.inner.start.x} ${sector.anchors.inner.start.y}`)
     expect(burstPath).toContain(`L ${sector.anchors.inner.start.x} ${sector.anchors.inner.start.y}`)
+  })
+
+  it("keeps full-circle rounded paths finite when a gap is applied", () => {
+    const sector = createCircularSectorViewModel({
+      center: { x: 160, y: 160 },
+      radius: 100,
+      ratio: 1,
+      theta: -Math.PI / 2,
+      gap: 8,
+      height: 50
+    })
+
+    const path = buildCircularSectorPathByMode(sector, {
+      mode: "arc",
+      cornerRadius: 8
+    })
+    const numbers = path.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)?.map(Number) ?? []
+
+    expect(numbers.every(Number.isFinite)).toBe(true)
+    expect(Math.max(...numbers.map(Math.abs))).toBeLessThan(1000)
   })
 })
